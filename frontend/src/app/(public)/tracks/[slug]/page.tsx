@@ -34,9 +34,10 @@ function formatSalary(min: number, max: number): string {
 export default async function TrackDetailPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const track = await fetchTrack(params.slug);
+  const { slug } = await params;
+  const track = await fetchTrack(slug);
   if (!track) notFound();
 
   return (
