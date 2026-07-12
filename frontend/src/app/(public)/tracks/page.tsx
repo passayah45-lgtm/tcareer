@@ -14,7 +14,7 @@ async function fetchTracks(): Promise<CareerTrack[]> {
     );
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.data as CareerTrack[]) || [];
+    return Array.isArray(data) ? data : (data.data as CareerTrack[]) || [];
   } catch {
     return [];
   } finally {

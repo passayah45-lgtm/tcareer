@@ -15,7 +15,7 @@ async function fetchTrack(slug: string): Promise<CareerTrack | null> {
     );
     if (!res.ok) return null;
     const data = await res.json();
-    return data.data as CareerTrack;
+    return (data.data ?? data) as CareerTrack;
   } catch {
     return null;
   } finally {
