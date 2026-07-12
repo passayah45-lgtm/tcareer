@@ -64,7 +64,7 @@ At minimum, configure:
 For a same-domain deployment, a common shape is:
 
 ```env
-ALLOWED_HOSTS=tcareerjobs.com,www.tcareerjobs.com
+ALLOWED_HOSTS=tcareerjobs.com,www.tcareerjobs.com,localhost,127.0.0.1
 FRONTEND_URL=https://tcareerjobs.com
 NEXT_PUBLIC_API_URL=https://tcareerjobs.com/api/v1
 CORS_ALLOWED_ORIGINS=https://tcareerjobs.com,https://www.tcareerjobs.com
@@ -75,6 +75,11 @@ FRONTEND_PORT=3001
 
 These ports intentionally differ from the T-Food deployment so both projects can
 share the same VPS IP address.
+
+Production Django trusts Nginx HTTPS termination through `X-Forwarded-Proto`.
+Keep `proxy_set_header X-Forwarded-Proto $scheme;` in the API, admin, and media
+Nginx locations so `SECURE_SSL_REDIRECT=True` does not create an HTTPS redirect
+loop behind the reverse proxy.
 
 ## What The Workflow Does
 
