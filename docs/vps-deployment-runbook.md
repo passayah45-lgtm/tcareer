@@ -64,12 +64,17 @@ At minimum, configure:
 For a same-domain deployment, a common shape is:
 
 ```env
-ALLOWED_HOSTS=tcareer.example.com
-FRONTEND_URL=https://tcareer.example.com
-NEXT_PUBLIC_API_URL=https://tcareer.example.com/api/v1
-CORS_ALLOWED_ORIGINS=https://tcareer.example.com
-CSRF_TRUSTED_ORIGINS=https://tcareer.example.com
+ALLOWED_HOSTS=tcareerjobs.com,www.tcareerjobs.com
+FRONTEND_URL=https://tcareerjobs.com
+NEXT_PUBLIC_API_URL=https://tcareerjobs.com/api/v1
+CORS_ALLOWED_ORIGINS=https://tcareerjobs.com,https://www.tcareerjobs.com
+CSRF_TRUSTED_ORIGINS=https://tcareerjobs.com,https://www.tcareerjobs.com
+APP_PORT=8001
+FRONTEND_PORT=3001
 ```
+
+These ports intentionally differ from the T-Food deployment so both projects can
+share the same VPS IP address.
 
 ## What The Workflow Does
 
@@ -92,11 +97,11 @@ Put Nginx, Caddy, or another TLS reverse proxy in front of the containers.
 
 Suggested routing:
 
-- `https://tcareer.example.com/` to frontend on `127.0.0.1:3000`
-- `https://tcareer.example.com/api/` to backend on `127.0.0.1:8000`
-- `https://tcareer.example.com/admin/` to backend on `127.0.0.1:8000`
+- `https://tcareerjobs.com/` to frontend on `127.0.0.1:3001`
+- `https://tcareerjobs.com/api/` to backend on `127.0.0.1:8001`
+- `https://tcareerjobs.com/admin/` to backend on `127.0.0.1:8001`
 
-Keep ports `3000` and `8000` firewalled from the public internet if possible.
+Keep ports `3001` and `8001` firewalled from the public internet if possible.
 
 ## Manual Commands On VPS
 
