@@ -1,0 +1,47 @@
+services:
+  db_test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tcareer_test
+      POSTGRES_USER: tcareer_test_user
+      POSTGRES_PASSWORD: tcareer_test_pass
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tcareer_test_user -d tcareer_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis_test:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api_test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             pytest --cov=apps --cov-report=xml --cov-report=term-missing -v"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      DATABASE_URL: postgresql://tcareer_test_user:tcareer_test_pass@db_test:5432/tcareer_test
+      REDIS_URL: redis://redis_test:6379/0
+      SECRET_KEY: test-secret-key-not-for-production-use-only
+      DEBUG: "False"
+      ALLOWED_HOSTS: "*"
+    depends_on:
+      db_test:
+        condition: service_healthy
+      redis_test:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
