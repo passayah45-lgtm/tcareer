@@ -33,7 +33,7 @@ services:
       target: production
     restart: unless-stopped
     env_file:
-      - ./.env.production
+      - ${TCAREER_ENV_FILE:-./.env.production}
     command: >
       gunicorn config.wsgi:application
       --bind 0.0.0.0:8000
@@ -46,6 +46,9 @@ services:
       --log-level info
     ports:
       - "${APP_PORT:-8000}:8000"
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
     depends_on:
       db:
         condition: service_healthy
@@ -64,7 +67,9 @@ services:
       target: production
     restart: unless-stopped
     env_file:
-      - ./.env.production
+      - ${TCAREER_ENV_FILE:-./.env.production}
+    volumes:
+      - media_data:/app/media
     command: celery -A tasks.celery worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-2}
     depends_on:
       db:
@@ -79,7 +84,7 @@ services:
       target: production
     restart: unless-stopped
     env_file:
-      - ./.env.production
+      - ${TCAREER_ENV_FILE:-./.env.production}
     command: celery -A tasks.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     depends_on:
       db:
@@ -87,6 +92,27 @@ services:
       redis:
         condition: service_healthy
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      web:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   redis_data:
+  media_data:
+  static_data:

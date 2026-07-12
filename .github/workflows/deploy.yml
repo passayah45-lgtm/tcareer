@@ -1,103 +1,88 @@
-name: Deploy
+name: Deploy to VPS
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag, or SHA to deploy"
+        required: false
+        default: "main"
 
 concurrency:
-  group: deploy-production
+  group: deploy-vps-production
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy to AWS ECS
+    name: Deploy T-Career to VPS
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     environment: production
+
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          ref: ${{ inputs.ref }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build, tag, and push API image to ECR
-        id: build-image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: tcareer-api
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Validate deployment secrets
         run: |
-          docker build \
-            --target production \
-            --tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            --tag $ECR_REGISTRY/$ECR_REPOSITORY:latest \
-            ./backend
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          test -n "$VPS_HOST"
+          test -n "$VPS_USER"
+          test -n "$VPS_DEPLOY_PATH"
+          test -n "${{ secrets.VPS_SSH_KEY }}"
 
-      - name: Download current ECS task definition (API)
+      - name: Install SSH and rsync tooling
         run: |
-          aws ecs describe-task-definition \
-            --task-definition tcareer-api \
-            --query taskDefinition \
-            > infrastructure/aws/task-definitions/api-current.json
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends rsync openssh-client
 
-      - name: Render new ECS task definition with updated image
-        id: render-api-task
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: infrastructure/aws/task-definitions/api-current.json
-          container-name: tcareer-api
-          image: ${{ steps.build-image.outputs.image }}
-
-      - name: Run Django migrations before traffic switches
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Configure SSH key
         run: |
-          aws ecs run-task \
-            --cluster tcareer-production \
-            --task-definition tcareer-migrate \
-            --launch-type FARGATE \
-            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.ECS_SUBNET_IDS }}],securityGroups=[${{ secrets.ECS_SECURITY_GROUP_ID }}]}" \
-            --overrides '{"containerOverrides":[{"name":"tcareer-api","command":["python","manage.py","migrate","--noinput"]}]}' \
-            --wait-for-completion
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/tcareer_vps_key
+          chmod 600 ~/.ssh/tcareer_vps_key
+          ssh-keyscan -p "${VPS_PORT:-22}" "$VPS_HOST" >> ~/.ssh/known_hosts
 
-      - name: Deploy updated task definition to ECS (API)
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.render-api-task.outputs.task-definition }}
-          service: tcareer-api
-          cluster: tcareer-production
-          wait-for-service-stability: true
+      - name: Sync source to VPS
+        run: |
+          ssh -i ~/.ssh/tcareer_vps_key -p "${VPS_PORT:-22}" "$VPS_USER@$VPS_HOST" \
+            "mkdir -p '$VPS_DEPLOY_PATH'"
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/tcareer_vps_key -p ${VPS_PORT:-22}" \
+            --exclude ".git/" \
+            --exclude ".env" \
+            --exclude ".env.production" \
+            --exclude ".env.local" \
+            --exclude ".env.staging" \
+            --exclude "backend/db.sqlite3" \
+            --exclude "backend/media/" \
+            --exclude "backend/staticfiles/" \
+            --exclude "frontend/.env.local" \
+            --exclude "frontend/.next/" \
+            --exclude "frontend/node_modules/" \
+            --exclude "frontend/.npm-cache/" \
+            ./ "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/"
 
-      - name: Deploy updated task definition to ECS (Worker)
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.render-api-task.outputs.task-definition }}
-          service: tcareer-worker
-          cluster: tcareer-production
-          wait-for-service-stability: true
-
-      - name: Notify on failure
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: 'Deployment failed. Check the Actions log for details.'
-            })
+      - name: Build and start services
+        run: |
+          ssh -i ~/.ssh/tcareer_vps_key -p "${VPS_PORT:-22}" "$VPS_USER@$VPS_HOST" \
+            "VPS_DEPLOY_PATH='$VPS_DEPLOY_PATH' bash -s" << 'EOF'
+          set -euo pipefail
+          cd "$VPS_DEPLOY_PATH"
+          test -f .env.production
+          docker compose --env-file .env.production -f docker-compose.prod.yml build
+          docker compose --env-file .env.production -f docker-compose.prod.yml up -d db redis
+          docker compose --env-file .env.production -f docker-compose.prod.yml run --rm web python manage.py migrate --noinput
+          docker compose --env-file .env.production -f docker-compose.prod.yml run --rm web python manage.py collectstatic --noinput
+          docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+          docker compose --env-file .env.production -f docker-compose.prod.yml exec -T web python manage.py production_smoke_check
+          docker compose --env-file .env.production -f docker-compose.prod.yml ps
+          EOF

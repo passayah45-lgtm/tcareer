@@ -118,6 +118,7 @@ GitHub Actions runs:
 Release-candidate notes, blocker register, operational checklist, risk register, and CTO verdict live in `docs/release-candidate-1.0.md`.
 Production-readiness provider validation, retention, load-test, accessibility, monitoring, and go-live guidance live in `docs/production-readiness-1.0.md`.
 Staging go-live rehearsal evidence is tracked in `docs/staging-go-live-rehearsal.md`.
+VPS deployment setup and required GitHub secrets live in `docs/vps-deployment-runbook.md`.
 
 Useful release commands:
 
