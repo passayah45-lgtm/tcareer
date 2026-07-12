@@ -2,6 +2,8 @@ import { Navbar } from "@/components/layout/Navbar";
 import { TrackCard } from "@/components/tracks/TrackCard";
 import type { CareerTrack } from "@/types/track.types";
 
+export const dynamic = "force-dynamic";
+
 async function fetchTracks(): Promise<CareerTrack[]> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   if (!apiUrl) return [];

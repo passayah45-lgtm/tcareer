@@ -3,6 +3,8 @@ import { Navbar } from "@/components/layout/Navbar";
 import { TrackEnrollSection } from "@/components/tracks/TrackEnrollSection";
 import type { CareerTrack } from "@/types/track.types";
 
+export const dynamic = "force-dynamic";
+
 async function fetchTrack(slug: string): Promise<CareerTrack | null> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   if (!apiUrl) return null;
