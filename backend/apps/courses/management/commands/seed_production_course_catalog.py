@@ -26,6 +26,10 @@ class Command(BaseCommand):
             help="Required for writes when DEBUG=False.",
         )
         parser.add_argument("--track", help="Seed one supported track slug.")
+        parser.add_argument(
+            "--course",
+            help="Seed one supported course slug and its track attachment.",
+        )
         parser.add_argument("--all-tracks", action="store_true", help="Seed all supported tracks.")
         parser.add_argument(
             "--update-existing",
@@ -68,10 +72,16 @@ class Command(BaseCommand):
         )
 
     def _validate_options(self, options: dict[str, Any]) -> None:
-        if options["track"] and options["all_tracks"]:
-            raise CommandError("Use either --track or --all-tracks, not both.")
-        if not options["track"] and not options["all_tracks"]:
-            raise CommandError("Choose --track <slug> or --all-tracks.")
+        selected = [bool(options["track"]), bool(options["course"]), bool(options["all_tracks"])]
+        if sum(selected) != 1:
+            raise CommandError(
+                "Choose exactly one of --track <slug>, --course <slug>, or --all-tracks."
+            )
+        if options["course"] and options["course"] not in COURSES_BY_SLUG:
+            supported = ", ".join(sorted(COURSES_BY_SLUG))
+            raise CommandError(
+                f"Unsupported course '{options['course']}'. Supported courses: {supported}"
+            )
         if not settings.DEBUG and not options["dry_run"] and not options["confirm_production"]:
             raise CommandError(
                 "Refusing to write in production without --confirm-production. "
@@ -97,6 +107,13 @@ class Command(BaseCommand):
     def _selected_track_slugs(self, options: dict[str, Any]) -> list[str]:
         if options["all_tracks"]:
             return sorted(TRACK_ATTACHMENTS)
+        if options["course"]:
+            for track_slug, attachments in TRACK_ATTACHMENTS.items():
+                if any(item.course_slug == options["course"] for item in attachments):
+                    return [track_slug]
+            raise CommandError(
+                f"Course '{options['course']}' is not attached to any supported track."
+            )
         slug = options["track"]
         if slug not in TRACK_ATTACHMENTS:
             supported = ", ".join(sorted(TRACK_ATTACHMENTS))
@@ -113,6 +130,8 @@ class Command(BaseCommand):
             plan["tracks"].append(track)
 
             for attachment in TRACK_ATTACHMENTS[track_slug]:
+                if options["course"] and attachment.course_slug != options["course"]:
+                    continue
                 course_def = COURSES_BY_SLUG[attachment.course_slug]
                 existing_course = Course.objects.filter(slug=course_def.slug).first()
                 desired_status = (

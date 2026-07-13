@@ -50,6 +50,25 @@ def run_seed(instructor, *args, confirm=True):
     return output.getvalue()
 
 
+def run_course_seed(instructor, course_slug, *args, confirm=True):
+    output = io.StringIO()
+    command_args = [
+        "--course",
+        course_slug,
+        "--instructor-email",
+        instructor.email,
+        *args,
+    ]
+    if confirm and "--dry-run" not in args:
+        command_args.append("--confirm-production")
+    call_command(
+        "seed_production_course_catalog",
+        *command_args,
+        stdout=output,
+    )
+    return output.getvalue()
+
+
 @pytest.mark.django_db
 def test_dry_run_makes_no_changes(data_analyst_track):
     instructor = InstructorFactory(email="instructor@example.com")
@@ -60,6 +79,33 @@ def test_dry_run_makes_no_changes(data_analyst_track):
     assert Course.objects.count() == 0
     assert TrackCourse.objects.count() == 0
     assert User.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_single_course_dry_run_plans_only_excel(data_analyst_track):
+    instructor = InstructorFactory(email="instructor@example.com")
+
+    output = run_course_seed(instructor, "excel-for-data-analysis", "--dry-run")
+
+    assert "Excel for Data Analysis" in output
+    assert "SQL for Data Analysis" not in output
+    assert Course.objects.count() == 0
+    assert TrackCourse.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_single_course_seed_creates_only_excel_and_one_attachment(data_analyst_track):
+    instructor = InstructorFactory(email="instructor@example.com")
+
+    run_course_seed(instructor, "excel-for-data-analysis")
+
+    assert list(Course.objects.values_list("slug", flat=True)) == ["excel-for-data-analysis"]
+    assert TrackCourse.objects.count() == 1
+    track_course = TrackCourse.objects.select_related("course", "track").get()
+    assert track_course.track.slug == "data-analyst"
+    assert track_course.course.slug == "excel-for-data-analysis"
+    assert track_course.position == 10
+    assert track_course.course.status == CourseStatus.DRAFT
 
 
 @pytest.mark.django_db
