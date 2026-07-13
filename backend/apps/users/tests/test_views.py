@@ -1,10 +1,11 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.users.models import User, UserRole
+from apps.users.models import UserRole
 from apps.users.tests.factories import UserFactory
 
 
@@ -83,6 +84,36 @@ class TestRegisterEndpoint:
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["data"]["user"]["role"] == UserRole.INSTRUCTOR
 
+    def test_register_as_mentor(self, client):
+        response = client.post(
+            reverse("users:register"),
+            {
+                "email": "mentor@example.com",
+                "password": "SecurePass123!",
+                "password_confirm": "SecurePass123!",
+                "full_name": "Mentor User",
+                "role": "mentor",
+            },
+            format="json",
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["data"]["user"]["role"] == UserRole.MENTOR
+
+    def test_register_as_recruiter(self, client):
+        response = client.post(
+            reverse("users:register"),
+            {
+                "email": "recruiter@example.com",
+                "password": "SecurePass123!",
+                "password_confirm": "SecurePass123!",
+                "full_name": "Recruiter User",
+                "role": "recruiter",
+            },
+            format="json",
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["data"]["user"]["role"] == UserRole.RECRUITER
+
     def test_register_missing_email(self, client):
         response = client.post(
             reverse("users:register"),
@@ -119,6 +150,19 @@ class TestRegisterEndpoint:
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_register_weak_password(self, client):
+        response = client.post(
+            reverse("users:register"),
+            {
+                "email": "test@example.com",
+                "password": "123",
+                "password_confirm": "123",
+                "full_name": "Test User",
+            },
+            format="json",
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
     def test_register_duplicate_email(self, client):
         UserFactory(email="taken@example.com")
         response = client.post(
@@ -133,29 +177,27 @@ class TestRegisterEndpoint:
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_register_weak_password(self, client):
+    @pytest.mark.parametrize(
+        "role",
+        [
+            UserRole.ADMIN,
+            UserRole.COMPANY_ADMIN,
+            UserRole.UNIVERSITY_ADMIN,
+            UserRole.CONTENT_MODERATOR,
+            UserRole.FINANCE_ADMIN,
+            UserRole.PLATFORM_ADMIN,
+            UserRole.SUPER_ADMIN,
+        ],
+    )
+    def test_register_does_not_accept_admin_roles(self, client, role):
         response = client.post(
             reverse("users:register"),
             {
-                "email": "test@example.com",
-                "password": "123",
-                "password_confirm": "123",
-                "full_name": "Test User",
-            },
-            format="json",
-        )
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-    def test_register_does_not_accept_recruiter_role(self, client):
-        """Recruiters are onboarded manually, not via self-registration."""
-        response = client.post(
-            reverse("users:register"),
-            {
-                "email": "recruiter@example.com",
+                "email": f"{role}@example.com",
                 "password": "SecurePass123!",
                 "password_confirm": "SecurePass123!",
-                "full_name": "Recruiter",
-                "role": "recruiter",
+                "full_name": "Privileged User",
+                "role": role,
             },
             format="json",
         )

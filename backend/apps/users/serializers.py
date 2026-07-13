@@ -63,7 +63,12 @@ class RegisterSerializer(serializers.Serializer):
     )
     full_name = serializers.CharField(min_length=2, max_length=255)
     role = serializers.ChoiceField(
-        choices=[UserRole.STUDENT, UserRole.INSTRUCTOR],
+        choices=[
+            UserRole.STUDENT,
+            UserRole.INSTRUCTOR,
+            UserRole.MENTOR,
+            UserRole.RECRUITER,
+        ],
         default=UserRole.STUDENT,
     )
 
@@ -77,7 +82,7 @@ class RegisterSerializer(serializers.Serializer):
         try:
             validate_password(value)
         except DjangoValidationError as exc:
-            raise serializers.ValidationError(list(exc.messages))
+            raise serializers.ValidationError(list(exc.messages)) from exc
         return value
 
     def validate(self, attrs: dict) -> dict:
@@ -108,7 +113,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         try:
             validate_password(value)
         except DjangoValidationError as exc:
-            raise serializers.ValidationError(list(exc.messages))
+            raise serializers.ValidationError(list(exc.messages)) from exc
         return value
 
     def validate(self, attrs: dict) -> dict:

@@ -75,6 +75,8 @@ export default function RegisterPage() {
               <select {...register("role")} className="w-full h-10 px-3 text-sm rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors">
                 <option value="student">Student</option>
                 <option value="instructor">Instructor</option>
+                <option value="mentor">Mentor</option>
+                <option value="recruiter">Recruiter</option>
               </select>
             </div>
             <button type="submit" disabled={isSubmitting}

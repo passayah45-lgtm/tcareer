@@ -1,13 +1,15 @@
 import api from "./client";
-import type { AuthResponse, User } from "@/types/user.types";
+import type { AuthResponse, User, UserRole } from "@/types/user.types";
 import type { ApiResponse } from "@/types/api.types";
+
+export type PublicRegistrationRole = Extract<UserRole, "student" | "instructor" | "mentor" | "recruiter">;
 
 export interface RegisterPayload {
   email: string;
   password: string;
   password_confirm: string;
   full_name: string;
-  role?: "student" | "instructor";
+  role?: PublicRegistrationRole;
 }
 
 export interface LoginPayload {
