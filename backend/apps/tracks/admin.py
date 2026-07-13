@@ -1,13 +1,28 @@
 from django.contrib import admin
+
 from .models import CareerTrack, TrackCourse, UserTrackEnrollment
 
 
 class TrackCourseInline(admin.TabularInline):
     model = TrackCourse
     extra = 0
-    fields = ["course", "stage", "position", "is_required", "notes"]
+    fields = [
+        "course", "course_status", "course_instructor",
+        "stage", "position", "is_required", "notes",
+    ]
+    readonly_fields = ["course_status", "course_instructor"]
     raw_id_fields = ["course"]
     ordering = ["position"]
+
+    def course_status(self, obj):
+        if not obj or not obj.course_id:
+            return "-"
+        return obj.course.status
+
+    def course_instructor(self, obj):
+        if not obj or not obj.course_id:
+            return "-"
+        return obj.course.instructor.email
 
 
 @admin.register(CareerTrack)
@@ -51,3 +66,22 @@ class UserTrackEnrollmentAdmin(admin.ModelAdmin):
     list_filter = ["is_completed", "current_stage"]
     search_fields = ["user__email", "track__title"]
     readonly_fields = ["id", "created_at", "last_activity_at", "progress_percentage"]
+
+
+@admin.register(TrackCourse)
+class TrackCourseAdmin(admin.ModelAdmin):
+    list_display = [
+        "track", "course", "course_status", "course_instructor",
+        "stage", "position", "is_required",
+    ]
+    list_filter = ["track", "stage", "is_required", "course__status"]
+    search_fields = ["track__title", "track__slug", "course__title", "course__slug"]
+    raw_id_fields = ["track", "course"]
+    readonly_fields = ["id", "created_at", "updated_at", "course_status", "course_instructor"]
+    ordering = ["track__position", "position"]
+
+    def course_status(self, obj):
+        return obj.course.status
+
+    def course_instructor(self, obj):
+        return obj.course.instructor.email

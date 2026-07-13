@@ -1,13 +1,19 @@
 from django.contrib import admin
-from .models import QuizQuestion, QuizAttempt, CourseRating
+
+from .models import CourseRating, QuizAttempt, QuizQuestion
 
 
 @admin.register(QuizQuestion)
 class QuizQuestionAdmin(admin.ModelAdmin):
-    list_display = ["course", "question_text", "correct_index", "position"]
+    list_display = ["course", "course_instructor", "question_text", "correct_index", "position"]
     list_filter = ["course"]
-    search_fields = ["question_text", "course__title"]
+    search_fields = ["question_text", "course__title", "course__slug", "course__instructor__email"]
     raw_id_fields = ["course"]
+    readonly_fields = ["id", "created_at", "updated_at", "course_instructor"]
+    ordering = ["course__title", "position"]
+
+    def course_instructor(self, obj):
+        return obj.course.instructor.email
 
 
 @admin.register(QuizAttempt)

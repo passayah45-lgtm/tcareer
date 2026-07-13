@@ -1,4 +1,7 @@
 from rest_framework import serializers
+
+from apps.courses.models import CourseStatus
+
 from .models import CareerTrack, TrackCourse, UserTrackEnrollment
 
 
@@ -47,8 +50,8 @@ class TrackCourseSerializer(serializers.ModelSerializer):
 class CareerTrackListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for the track listing page."""
 
-    total_courses = serializers.ReadOnlyField()
-    required_courses_count = serializers.ReadOnlyField()
+    total_courses = serializers.SerializerMethodField()
+    required_courses_count = serializers.SerializerMethodField()
     duration_display = serializers.ReadOnlyField()
     category_display = serializers.CharField(source="get_category_display", read_only=True)
     is_enrolled = serializers.SerializerMethodField()
@@ -72,6 +75,19 @@ class CareerTrackListSerializer(serializers.ModelSerializer):
             user=request.user, track=obj
         ).exists()
 
+    def get_total_courses(self, obj):
+        return obj.track_courses.filter(
+            course__status=CourseStatus.PUBLISHED,
+            course__deleted_at__isnull=True,
+        ).count()
+
+    def get_required_courses_count(self, obj):
+        return obj.track_courses.filter(
+            is_required=True,
+            course__status=CourseStatus.PUBLISHED,
+            course__deleted_at__isnull=True,
+        ).count()
+
 
 class CareerTrackDetailSerializer(CareerTrackListSerializer):
     """Full serializer including courses for the track detail page."""
@@ -88,7 +104,11 @@ class CareerTrackDetailSerializer(CareerTrackListSerializer):
         stages = {1: "Foundation", 2: "Core Skills", 3: "Advanced"}
         result = []
         for stage_num, stage_name in stages.items():
-            courses = obj.track_courses.filter(stage=stage_num).order_by("position")
+            courses = obj.track_courses.filter(
+                stage=stage_num,
+                course__status=CourseStatus.PUBLISHED,
+                course__deleted_at__isnull=True,
+            ).order_by("position")
             if courses.exists():
                 result.append({
                     "stage": stage_num,
