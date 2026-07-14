@@ -1,21 +1,26 @@
 import logging
+
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from common.permissions import IsInstructor
-from common.exceptions import PermissionError
 from apps.courses.models import Course, Enrollment
-from apps.courses.services import EnrollmentService
-from .models import QuizQuestion, CourseRating
+from common.exceptions import PermissionError
+from common.permissions import IsInstructor
+
+from .models import CourseRating, QuestionReviewStatus, QuizQuestion
 from .serializers import (
-    QuizQuestionSerializer, QuizQuestionAdminSerializer,
-    QuizQuestionCreateSerializer, QuizSubmitSerializer,
-    QuizAttemptSerializer, CourseRatingSerializer, CreateRatingSerializer,
+    CourseRatingSerializer,
+    CreateRatingSerializer,
+    QuizAttemptSerializer,
+    QuizQuestionAdminSerializer,
+    QuizQuestionCreateSerializer,
+    QuizQuestionSerializer,
+    QuizSubmitSerializer,
 )
-from .services import QuizService, RatingService
+from .services import QuestionReviewService, QuizService, RatingService
 
 logger = logging.getLogger(__name__)
 
@@ -32,24 +37,22 @@ def quiz_questions(request, course_id):
     course = get_object_or_404(Course, id=course_id, deleted_at=None)
     questions = QuizService.get_questions(course)
 
-    is_instructor = (
-        request.user == course.instructor or request.user.role == "admin"
-    )
+    is_instructor = request.user == course.instructor or request.user.role == "admin"
 
     if is_instructor:
         serializer = QuizQuestionAdminSerializer(questions, many=True)
     else:
-        enrollment = get_object_or_404(
-            Enrollment, user=request.user, course=course
-        )
-        can, reason = QuizService.can_attempt(enrollment)
+        enrollment = get_object_or_404(Enrollment, user=request.user, course=course)
+        QuizService.can_attempt(enrollment)
         serializer = QuizQuestionSerializer(questions, many=True)
 
-    return Response({
-        "questions": serializer.data,
-        "total": questions.count(),
-        "pass_threshold": course.pass_threshold,
-    })
+    return Response(
+        {
+            "questions": serializer.data,
+            "total": questions.count(),
+            "pass_threshold": course.pass_threshold,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -121,7 +124,11 @@ def create_question(request, course_id):
 
     serializer = QuizQuestionCreateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    question = serializer.save(course=course)
+    question = serializer.save(
+        course=course,
+        review_status=QuestionReviewStatus.REVIEW_REQUIRED,
+        is_certificate_eligible=False,
+    )
     return Response(
         QuizQuestionAdminSerializer(question).data,
         status=status.HTTP_201_CREATED,
@@ -146,7 +153,30 @@ def manage_question(request, course_id, question_id):
 
     serializer = QuizQuestionCreateSerializer(question, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
-    question = serializer.save()
+    data = dict(serializer.validated_data)
+    data.pop("review_status", None)
+    data.pop("is_certificate_eligible", None)
+    question = serializer.update(question, data)
+    if question.review_status == QuestionReviewStatus.APPROVED:
+        QuestionReviewService.require_review(
+            question,
+            request.user,
+            notes="Question content changed after approval.",
+        )
+    return Response(QuizQuestionAdminSerializer(question).data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, IsInstructor])
+def approve_question(request, course_id, question_id):
+    course = get_object_or_404(Course, id=course_id, deleted_at=None)
+    question = get_object_or_404(QuizQuestion, id=question_id, course=course)
+    question = QuestionReviewService.approve(
+        question,
+        request.user,
+        notes=request.data.get("review_notes", ""),
+        certificate_eligible=bool(request.data.get("is_certificate_eligible", True)),
+    )
     return Response(QuizQuestionAdminSerializer(question).data)
 
 
@@ -182,52 +212,58 @@ def course_ratings(request, course_id):
     course = get_object_or_404(Course, id=course_id, deleted_at=None)
     ratings = CourseRating.objects.filter(course=course).select_related("user")
     stats = RatingService.get_course_stats(course)
-    return Response({
-        "stats": stats,
-        "ratings": CourseRatingSerializer(ratings, many=True).data,
-    })
+    return Response(
+        {
+            "stats": stats,
+            "ratings": CourseRatingSerializer(ratings, many=True).data,
+        }
+    )
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated, IsInstructor])
 def bulk_create_questions(request, course_id):
-    from .serializers import QuizQuestionBulkCreateSerializer, QuizQuestionAdminSerializer
-    from .services import QuizBuilderService
     from common.exceptions import PermissionError
+
+    from .serializers import QuizQuestionAdminSerializer, QuizQuestionBulkCreateSerializer
+    from .services import QuizBuilderService
+
     course = get_object_or_404(Course, id=course_id, deleted_at=None)
     if course.instructor != request.user:
-        raise PermissionError('You do not own this course.')
+        raise PermissionError("You do not own this course.")
     serializer = QuizQuestionBulkCreateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     questions = QuizBuilderService.bulk_create(
         course=course,
-        questions_data=serializer.validated_data['questions'],
-        replace=serializer.validated_data['replace'],
+        questions_data=serializer.validated_data["questions"],
+        replace=serializer.validated_data["replace"],
         instructor=request.user,
     )
     return Response(
         {
-            'questions': QuizQuestionAdminSerializer(questions, many=True).data,
-            'total': len(questions),
-            'course_id': str(course.id),
+            "questions": QuizQuestionAdminSerializer(questions, many=True).data,
+            "total": len(questions),
+            "course_id": str(course.id),
         },
         status=status.HTTP_201_CREATED,
     )
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated, IsInstructor])
 def reorder_questions(request, course_id):
+    from common.exceptions import PermissionError
+
     from .serializers import QuizQuestionAdminSerializer
     from .services import QuizBuilderService
-    from common.exceptions import PermissionError
+
     course = get_object_or_404(Course, id=course_id, deleted_at=None)
     if course.instructor != request.user:
-        raise PermissionError('You do not own this course.')
-    questions_data = request.data.get('questions', [])
+        raise PermissionError("You do not own this course.")
+    questions_data = request.data.get("questions", [])
     if not isinstance(questions_data, list) or not questions_data:
         return Response(
-            {'errors': {'questions': 'Provide a non-empty list of question positions.'}},
+            {"errors": {"questions": "Provide a non-empty list of question positions."}},
             status=status.HTTP_400_BAD_REQUEST,
         )
     questions = QuizBuilderService.reorder_questions(
@@ -235,7 +271,9 @@ def reorder_questions(request, course_id):
         question_data=questions_data,
         instructor=request.user,
     )
-    return Response({
-        'questions': QuizQuestionAdminSerializer(questions, many=True).data,
-        'total': len(questions),
-    })
+    return Response(
+        {
+            "questions": QuizQuestionAdminSerializer(questions, many=True).data,
+            "total": len(questions),
+        }
+    )

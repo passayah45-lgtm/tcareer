@@ -22,6 +22,8 @@ class CourseFactory(DjangoModelFactory):
     level = "beginner"
     status = CourseStatus.DRAFT
     price = factory.LazyFunction(lambda: fake.pydecimal(left_digits=2, right_digits=2, min_value=1, max_value=99))
+    requirements = factory.LazyFunction(lambda: ["Basic computer literacy"])
+    what_you_learn = factory.LazyFunction(lambda: ["Complete the course objectives"])
 
 
 class PublishedCourseFactory(CourseFactory):

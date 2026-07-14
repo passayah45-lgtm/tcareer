@@ -28,7 +28,15 @@ Design decisions:
 
 from django.conf import settings
 from django.db import models
+
 from common.models import BaseModel
+
+
+class QuestionReviewStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    REVIEW_REQUIRED = "review_required", "Review Required"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
 
 
 class QuizQuestion(BaseModel):
@@ -56,12 +64,37 @@ class QuizQuestion(BaseModel):
         help_text="Shown to the student after answering. Explains why the answer is correct.",
     )
     position = models.PositiveIntegerField(default=0, db_index=True)
+    question_type = models.CharField(
+        max_length=40, blank=True, default="multiple_choice", db_index=True
+    )
+    lesson_mapping = models.CharField(max_length=255, blank=True, default="")
+    difficulty = models.CharField(max_length=30, blank=True, default="beginner", db_index=True)
+    review_status = models.CharField(
+        max_length=30,
+        choices=QuestionReviewStatus.choices,
+        default=QuestionReviewStatus.REVIEW_REQUIRED,
+        db_index=True,
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_quiz_questions",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_notes = models.TextField(blank=True, default="")
+    is_certificate_eligible = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         db_table = "quiz_questions"
         ordering = ["position"]
         indexes = [
             models.Index(fields=["course", "position"]),
+            models.Index(fields=["course", "review_status"], name="quiz_q_course_review_idx"),
+            models.Index(
+                fields=["course", "is_certificate_eligible"], name="quiz_q_course_cert_idx"
+            ),
         ]
 
     def __str__(self):
@@ -69,6 +102,7 @@ class QuizQuestion(BaseModel):
 
     def clean(self):
         from django.core.exceptions import ValidationError
+
         if not isinstance(self.options, list) or len(self.options) != 4:
             raise ValidationError("options must be a list of exactly 4 strings.")
         if not 0 <= self.correct_index <= 3:
@@ -93,9 +127,7 @@ class QuizAttempt(BaseModel):
     answers = models.JSONField(
         help_text="Dict mapping question_id (str) to selected_index (int). Example: {'uuid': 2}"
     )
-    score = models.PositiveSmallIntegerField(
-        help_text="Number of correct answers."
-    )
+    score = models.PositiveSmallIntegerField(help_text="Number of correct answers.")
     total_questions = models.PositiveSmallIntegerField()
     percentage = models.PositiveSmallIntegerField(
         help_text="Score as a percentage rounded to nearest integer."
@@ -136,9 +168,7 @@ class CourseRating(BaseModel):
         related_name="ratings",
         db_index=True,
     )
-    stars = models.PositiveSmallIntegerField(
-        help_text="Rating from 1 to 5."
-    )
+    stars = models.PositiveSmallIntegerField(help_text="Rating from 1 to 5.")
     review = models.TextField(blank=True, default="")
 
     class Meta:

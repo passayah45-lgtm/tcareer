@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import io
 
 import pytest
@@ -9,7 +10,7 @@ from django.test import override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.assessments.models import CourseRating, QuizAttempt, QuizQuestion
+from apps.assessments.models import CourseRating, QuestionReviewStatus, QuizAttempt, QuizQuestion
 from apps.certificates.models import Certificate
 from apps.courses.data_analyst_curriculum import CURRICULA
 from apps.courses.models import Course, CourseStatus, Enrollment, Lesson
@@ -160,7 +161,8 @@ def test_update_existing_rewrites_seeded_lesson_to_review_required_draft(instruc
     run_content_seed(instructor, "--course", "excel-for-data-analysis", "--update-existing")
 
     lesson = Lesson.objects.get(title="Excel foundations")
-    assert "Content status: review_required." in lesson.content
+    assert "## Excel-specific explanation" in lesson.content
+    assert "workbook" in lesson.content.lower()
     assert lesson.position == 10
     assert lesson.is_published is False
 
@@ -213,12 +215,110 @@ def test_assessments_review_required_and_no_certificate_issued(instructor):
 
     run_content_seed(instructor, "--course", "excel-for-data-analysis", "--publish-ready")
 
-    assert QuizQuestion.objects.count() == 2
+    assert QuizQuestion.objects.count() == 23
     assert all(
-        "[REVIEW REQUIRED]" in question.explanation
+        question.review_status == QuestionReviewStatus.REVIEW_REQUIRED
+        and question.is_certificate_eligible is False
         for question in QuizQuestion.objects.all()
     )
     assert Certificate.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_excel_lessons_are_lesson_specific_and_have_required_sections(instructor):
+    create_course_shells(instructor, ["excel-for-data-analysis"])
+
+    run_content_seed(instructor, "--course", "excel-for-data-analysis")
+
+    lessons = list(Lesson.objects.order_by("position"))
+    assert len(lessons) == 10
+    required_sections = [
+        "## Measurable objective",
+        "## Excel-specific explanation",
+        "## Worked example",
+        "## Common mistakes",
+        "## Guided practice",
+        "## Independent practice",
+        "## Expected output",
+        "## Validation checklist",
+        "## Version note",
+    ]
+    for lesson in lessons:
+        for section in required_sections:
+            assert section in lesson.content
+        assert "generic analyst workflow" not in lesson.content.lower()
+        assert "Content status: review_required" not in lesson.content
+
+
+@pytest.mark.django_db
+def test_excel_assessment_bank_covers_course_and_question_types(instructor):
+    create_course_shells(instructor, ["excel-for-data-analysis"])
+
+    run_content_seed(instructor, "--course", "excel-for-data-analysis")
+
+    questions = QuizQuestion.objects.order_by("position")
+    assert questions.count() == 23
+    assert questions.filter(question_type="applied_formula").count() >= 4
+    assert questions.filter(question_type="data_cleaning_scenario").count() >= 3
+    assert questions.filter(question_type="pivot_interpretation").count() >= 2
+    assert questions.filter(question_type="chart_selection").count() >= 2
+    covered = set(questions.values_list("lesson_mapping", flat=True))
+    assert "Final dashboard project" in covered
+    assert "Formulas and functions" in covered
+
+
+@pytest.mark.django_db
+def test_narrow_update_dry_run_writes_nothing_and_reports_fields(instructor):
+    create_course_shells(instructor, ["excel-for-data-analysis"])
+    run_content_seed(instructor, "--course", "excel-for-data-analysis")
+    before = list(Lesson.objects.values_list("id", "updated_at"))
+
+    output = run_content_seed(
+        instructor,
+        "--course",
+        "excel-for-data-analysis",
+        "--update-existing",
+        "--fields",
+        "lesson_content,assessments",
+        "--dry-run",
+    )
+
+    assert "Requested update fields: lesson_content,assessments" in output
+    assert list(Lesson.objects.values_list("id", "updated_at")) == before
+
+
+def test_excel_dataset_resource_is_reviewable():
+    dataset_path = "apps/courses/resources/excel_retail_sales_sample.csv"
+    with open(dataset_path, newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+
+    assert len(rows) == 150
+    assert set(rows[0]) == {
+        "order_id",
+        "order_date",
+        "region",
+        "city",
+        "salesperson",
+        "product",
+        "category",
+        "units",
+        "unit_price",
+        "discount",
+        "revenue",
+        "cost",
+        "profit",
+        "customer_segment",
+    }
+    assert any(row["discount"] == "" for row in rows)
+    assert any(row["region"] != row["region"].strip() or row["region"].islower() for row in rows)
+    assert len({row["order_id"] for row in rows}) < len(rows)
+
+
+def test_excel_dataset_generator_is_deterministic(tmp_path):
+    from apps.courses.management.commands.generate_excel_course_dataset import generate_rows
+
+    assert generate_rows(rows=150, seed=42) == generate_rows(rows=150, seed=42)
+    assert generate_rows(rows=150, seed=42) != generate_rows(rows=150, seed=43)
 
 
 @pytest.mark.django_db

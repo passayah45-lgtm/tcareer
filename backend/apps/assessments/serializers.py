@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import QuizQuestion, QuizAttempt, CourseRating
+
+from .models import CourseRating, QuizAttempt, QuizQuestion
 
 
 class QuizQuestionSerializer(serializers.ModelSerializer):
@@ -22,16 +23,40 @@ class QuizQuestionAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuizQuestion
         fields = [
-            "id", "question_text", "options", "correct_index",
-            "explanation", "position",
+            "id",
+            "question_text",
+            "options",
+            "correct_index",
+            "explanation",
+            "position",
+            "question_type",
+            "lesson_mapping",
+            "difficulty",
+            "review_status",
+            "reviewed_by",
+            "reviewed_at",
+            "review_notes",
+            "is_certificate_eligible",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "reviewed_by", "reviewed_at"]
 
 
 class QuizQuestionCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuizQuestion
-        fields = ["question_text", "options", "correct_index", "explanation", "position"]
+        fields = [
+            "question_text",
+            "options",
+            "correct_index",
+            "explanation",
+            "position",
+            "question_type",
+            "lesson_mapping",
+            "difficulty",
+            "review_status",
+            "review_notes",
+            "is_certificate_eligible",
+        ]
 
     def validate_options(self, value):
         if not isinstance(value, list) or len(value) != 4:
@@ -59,13 +84,14 @@ class QuizSubmitSerializer(serializers.Serializer):
 
     def validate_answers(self, value):
         import uuid
+
         for key in value:
             try:
                 uuid.UUID(str(key))
-            except ValueError:
+            except ValueError as exc:
                 raise serializers.ValidationError(
                     f"Invalid question ID format: {key}"
-                )
+                ) from exc
         return value
 
 
@@ -78,9 +104,15 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuizAttempt
         fields = [
-            "id", "score", "total_questions", "percentage",
-            "passed", "attempt_number", "pass_threshold",
-            "question_results", "created_at",
+            "id",
+            "score",
+            "total_questions",
+            "percentage",
+            "passed",
+            "attempt_number",
+            "pass_threshold",
+            "question_results",
+            "created_at",
         ]
         read_only_fields = fields
 
@@ -93,23 +125,24 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
         Includes the correct answer and explanation after submission.
         """
         from apps.assessments.models import QuizQuestion
-        questions = QuizQuestion.objects.filter(
-            course=obj.enrollment.course
-        ).order_by("position")
+
+        questions = QuizQuestion.objects.filter(course=obj.enrollment.course).order_by("position")
 
         results = []
         for q in questions:
             selected = obj.answers.get(str(q.id))
             is_correct = selected is not None and int(selected) == q.correct_index
-            results.append({
-                "question_id": str(q.id),
-                "question_text": q.question_text,
-                "options": q.options,
-                "selected_index": selected,
-                "correct_index": q.correct_index,
-                "is_correct": is_correct,
-                "explanation": q.explanation,
-            })
+            results.append(
+                {
+                    "question_id": str(q.id),
+                    "question_text": q.question_text,
+                    "options": q.options,
+                    "selected_index": selected,
+                    "correct_index": q.correct_index,
+                    "is_correct": is_correct,
+                    "explanation": q.explanation,
+                }
+            )
         return results
 
 
@@ -135,21 +168,27 @@ class QuizQuestionBulkItemSerializer(serializers.Serializer):
         max_length=4,
     )
     correct_index = serializers.IntegerField(min_value=0)
-    explanation = serializers.CharField(max_length=2000, allow_blank=True, default='')
+    explanation = serializers.CharField(max_length=2000, allow_blank=True, default="")
     position = serializers.IntegerField(min_value=0, default=0)
+    question_type = serializers.CharField(max_length=40, default="multiple_choice")
+    lesson_mapping = serializers.CharField(max_length=255, allow_blank=True, default="")
+    difficulty = serializers.CharField(max_length=30, allow_blank=True, default="beginner")
+    review_status = serializers.CharField(max_length=30, default="review_required")
+    review_notes = serializers.CharField(max_length=2000, allow_blank=True, default="")
+    is_certificate_eligible = serializers.BooleanField(default=False)
 
     def validate(self, data):
-        options = data.get('options', [])
-        correct_index = data.get('correct_index', 0)
+        options = data.get("options", [])
+        correct_index = data.get("correct_index", 0)
         if any(not str(opt).strip() for opt in options):
-            raise serializers.ValidationError({'options': 'Options cannot be empty strings.'})
+            raise serializers.ValidationError({"options": "Options cannot be empty strings."})
         if correct_index >= len(options):
             raise serializers.ValidationError(
-                {'correct_index': 'correct_index must be less than the number of options.'}
+                {"correct_index": "correct_index must be less than the number of options."}
             )
         while len(options) < 4:
-            options.append('Option ' + str(len(options) + 1))
-        data['options'] = options
+            options.append("Option " + str(len(options) + 1))
+        data["options"] = options
         return data
 
 
@@ -160,6 +199,6 @@ class QuizQuestionBulkCreateSerializer(serializers.Serializer):
     def validate_questions(self, value):
         if len(value) > 50:
             raise serializers.ValidationError(
-                'Cannot create more than 50 questions in a single request.'
+                "Cannot create more than 50 questions in a single request."
             )
         return value

@@ -1,10 +1,14 @@
 import logging
+
 from django.core.cache import cache
 from django.utils import timezone
 
-from common.exceptions import ServiceError, ConflictError, PermissionError
 from apps.courses.models import Enrollment, EnrollmentStatus
-from .models import QuizQuestion, QuizAttempt, CourseRating
+from common.audit import AuditService
+from common.exceptions import ConflictError, PermissionError, ServiceError
+from common.permission_service import PermissionService
+
+from .models import CourseRating, QuestionReviewStatus, QuizAttempt, QuizQuestion
 
 logger = logging.getLogger(__name__)
 
@@ -13,11 +17,22 @@ ATTEMPT_CACHE_TTL = 60 * 60 * 24  # 24 hours
 
 
 class QuizService:
-
     @staticmethod
     def get_questions(course):
         """Return all questions for a course quiz in order."""
         return QuizQuestion.objects.filter(course=course).order_by("position")
+
+    @staticmethod
+    def get_certificate_questions(course):
+        return QuizQuestion.objects.filter(
+            course=course,
+            review_status=QuestionReviewStatus.APPROVED,
+            is_certificate_eligible=True,
+        ).order_by("position")
+
+    @staticmethod
+    def has_certificate_safe_assessment(course) -> bool:
+        return QuizService.get_certificate_questions(course).count() >= 5
 
     @staticmethod
     def can_attempt(enrollment):
@@ -28,9 +43,7 @@ class QuizService:
         # Must have completed all lessons first
         # Exception: if no video lessons exist (text-only or demo course),
         # allow quiz without requiring lesson completion
-        total = enrollment.course.lessons.filter(
-            is_published=True, deleted_at=None
-        ).count()
+        total = enrollment.course.lessons.filter(is_published=True, deleted_at=None).count()
         completed = enrollment.lesson_progress.filter(is_completed=True).count()
         has_video_lessons = enrollment.course.lessons.filter(
             lesson_type="video", is_published=True, deleted_at=None
@@ -67,9 +80,11 @@ class QuizService:
         if not can_attempt:
             raise ServiceError(reason)
 
-        questions = QuizQuestion.objects.filter(course=enrollment.course)
+        questions = QuizService.get_certificate_questions(enrollment.course)
         if not questions.exists():
-            raise ServiceError("This course does not have a quiz yet.")
+            raise ServiceError(
+                "This course does not have an approved certificate-eligible quiz yet."
+            )
 
         total = questions.count()
         correct = 0
@@ -107,8 +122,10 @@ class QuizService:
                 percentage,
             )
             # Mark enrollment as completed and trigger certificate generation
-            from apps.courses.models import EnrollmentStatus
             from django.utils import timezone as tz
+
+            from apps.courses.models import EnrollmentStatus
+
             if enrollment.status != EnrollmentStatus.COMPLETED:
                 enrollment.status = EnrollmentStatus.COMPLETED
                 enrollment.completed_at = tz.now()
@@ -122,16 +139,17 @@ class QuizService:
             # Update career track progress if enrolled in a track
             try:
                 from apps.tracks.models import UserTrackEnrollment
-                track_enrollments = UserTrackEnrollment.objects.filter(
-                    user=enrollment.user
-                )
+
+                track_enrollments = UserTrackEnrollment.objects.filter(user=enrollment.user)
                 for te in track_enrollments:
                     course_ids = set(
-                        te.track.track_courses.filter(is_required=True)
-                        .values_list("course_id", flat=True)
+                        te.track.track_courses.filter(is_required=True).values_list(
+                            "course_id", flat=True
+                        )
                     )
                     if enrollment.course.id in course_ids:
                         from apps.tracks.views import _update_enrollment_progress
+
                         _update_enrollment_progress(te)
             except Exception as e:
                 logger.warning("Could not update track progress: %s", e)
@@ -139,14 +157,14 @@ class QuizService:
             # Send quiz passed notification
             try:
                 from apps.notifications.models import NotificationService
-                NotificationService.quiz_passed(
-                    enrollment.user, enrollment.course, percentage
-                )
+
+                NotificationService.quiz_passed(enrollment.user, enrollment.course, percentage)
             except Exception as e:
                 logger.warning("Could not send quiz notification: %s", e)
 
             # Trigger certificate generation
             from tasks.certificates import generate_certificate
+
             generate_certificate.delay(str(enrollment.id))
 
         return attempt
@@ -157,7 +175,6 @@ class QuizService:
 
 
 class RatingService:
-
     @staticmethod
     def create_rating(user, course, stars: int, review: str = "") -> CourseRating:
         """
@@ -169,8 +186,10 @@ class RatingService:
 
         try:
             enrollment = Enrollment.objects.get(user=user, course=course)
-        except Enrollment.DoesNotExist:
-            raise PermissionError("You must be enrolled in this course to rate it.")
+        except Enrollment.DoesNotExist as exc:
+            raise PermissionError(
+                "You must be enrolled in this course to rate it."
+            ) from exc
 
         if enrollment.status != EnrollmentStatus.COMPLETED:
             raise PermissionError("Complete the course before leaving a review.")
@@ -186,13 +205,16 @@ class RatingService:
         )
         logger.info(
             "Rating submitted: user=%s course=%s stars=%s",
-            user.email, course.title, stars,
+            user.email,
+            course.title,
+            stars,
         )
         return rating
 
     @staticmethod
     def get_course_stats(course) -> dict:
         from django.db.models import Avg, Count
+
         result = CourseRating.objects.filter(course=course).aggregate(
             average=Avg("stars"),
             count=Count("id"),
@@ -204,86 +226,178 @@ class RatingService:
 
 
 class QuizBuilderService:
-
     @staticmethod
     def bulk_create(course, questions_data, replace, instructor):
-        from django.db import transaction
-        from common.exceptions import PermissionError, ServiceError
-        from .models import QuizQuestion
         import logging
+
+        from django.db import transaction
+
+        from common.exceptions import PermissionError, ServiceError
+
+        from .models import QuizQuestion
+
         logger = logging.getLogger(__name__)
 
         if course.instructor != instructor:
-            raise PermissionError('You do not own this course.')
+            raise PermissionError("You do not own this course.")
 
         if replace and not questions_data:
-            raise ServiceError('Cannot replace questions with an empty list.')
+            raise ServiceError("Cannot replace questions with an empty list.")
 
         with transaction.atomic():
             if replace:
                 deleted_count = QuizQuestion.objects.filter(course=course).delete()[0]
-                logger.info('Deleted %d questions from course %s', deleted_count, course.id)
+                logger.info("Deleted %d questions from course %s", deleted_count, course.id)
 
             if replace:
                 start_position = 0
             else:
                 last = (
                     QuizQuestion.objects.filter(course=course)
-                    .order_by('-position')
-                    .values_list('position', flat=True)
+                    .order_by("-position")
+                    .values_list("position", flat=True)
                     .first()
                 )
                 start_position = (last + 10) if last is not None else 0
 
-            all_default = all(q.get('position', 0) == 0 for q in questions_data)
+            all_default = all(q.get("position", 0) == 0 for q in questions_data)
             to_create = []
             for i, q_data in enumerate(questions_data):
-                options = list(q_data['options'])
+                options = list(q_data["options"])
                 while len(options) < 4:
-                    options.append('Option ' + str(len(options) + 1))
+                    options.append("Option " + str(len(options) + 1))
                 position = (
-                    start_position + (i * 10) if all_default
-                    else q_data.get('position', start_position + i * 10)
+                    start_position + (i * 10)
+                    if all_default
+                    else q_data.get("position", start_position + i * 10)
                 )
-                to_create.append(QuizQuestion(
-                    course=course,
-                    question_text=q_data['question_text'],
-                    options=options,
-                    correct_index=q_data['correct_index'],
-                    explanation=q_data.get('explanation', ''),
-                    position=position,
-                ))
+                review_status = q_data.get("review_status", QuestionReviewStatus.REVIEW_REQUIRED)
+                is_certificate_eligible = bool(q_data.get("is_certificate_eligible", False))
+                if review_status != QuestionReviewStatus.APPROVED:
+                    is_certificate_eligible = False
+                to_create.append(
+                    QuizQuestion(
+                        course=course,
+                        question_text=q_data["question_text"],
+                        options=options,
+                        correct_index=q_data["correct_index"],
+                        explanation=q_data.get("explanation", ""),
+                        position=position,
+                        question_type=q_data.get("question_type", "multiple_choice"),
+                        lesson_mapping=q_data.get("lesson_mapping", ""),
+                        difficulty=q_data.get("difficulty", "beginner"),
+                        review_status=review_status,
+                        review_notes=q_data.get("review_notes", ""),
+                        is_certificate_eligible=is_certificate_eligible,
+                    )
+                )
             QuizQuestion.objects.bulk_create(to_create)
 
-        logger.info('Bulk created %d questions for course %s by %s', len(to_create), course.id, instructor.email)
-        return list(QuizQuestion.objects.filter(course=course).order_by('position'))
+        logger.info(
+            "Bulk created %d questions for course %s by %s",
+            len(to_create),
+            course.id,
+            instructor.email,
+        )
+        return list(QuizQuestion.objects.filter(course=course).order_by("position"))
 
     @staticmethod
     def get_question_count(course):
         from .models import QuizQuestion
+
         return QuizQuestion.objects.filter(course=course).count()
 
     @staticmethod
     def reorder_questions(course, question_data, instructor):
         from django.db import transaction
+
         from common.exceptions import PermissionError, ServiceError
+
         from .models import QuizQuestion
 
         if course.instructor != instructor:
-            raise PermissionError('You do not own this course.')
+            raise PermissionError("You do not own this course.")
 
-        submitted_ids = {str(item['id']) for item in question_data}
-        existing = list(QuizQuestion.objects.filter(course=course).only('id', 'position'))
+        submitted_ids = {str(item["id"]) for item in question_data}
+        existing = list(QuizQuestion.objects.filter(course=course).only("id", "position"))
         existing_ids = {str(q.id) for q in existing}
         extra = submitted_ids - existing_ids
         if extra:
-            raise ServiceError('Unknown question IDs: ' + ', '.join(extra) + '.')
+            raise ServiceError("Unknown question IDs: " + ", ".join(extra) + ".")
 
-        position_map = {str(item['id']): item['position'] for item in question_data}
+        position_map = {str(item["id"]): item["position"] for item in question_data}
         with transaction.atomic():
             for q in existing:
                 if str(q.id) in position_map:
                     q.position = position_map[str(q.id)]
-            QuizQuestion.objects.bulk_update(existing, ['position'])
+            QuizQuestion.objects.bulk_update(existing, ["position"])
 
-        return list(QuizQuestion.objects.filter(course=course).order_by('position'))
+        return list(QuizQuestion.objects.filter(course=course).order_by("position"))
+
+
+class QuestionReviewService:
+    @staticmethod
+    def can_review(user, question: QuizQuestion) -> bool:
+        return PermissionService.is_platform_admin(
+            user
+        ) or question.course.instructor_id == getattr(user, "id", None)
+
+    @staticmethod
+    def approve(
+        question: QuizQuestion, reviewer, *, notes: str = "", certificate_eligible: bool = True
+    ) -> QuizQuestion:
+        if not QuestionReviewService.can_review(reviewer, question):
+            raise PermissionError("You cannot review this question.")
+        if (
+            "[REVIEW REQUIRED]" in question.question_text
+            or "[REVIEW REQUIRED]" in question.explanation
+        ):
+            raise ServiceError("Remove review markers before approving this question.")
+        question.review_status = QuestionReviewStatus.APPROVED
+        question.reviewed_by = reviewer
+        question.reviewed_at = timezone.now()
+        question.review_notes = notes
+        question.is_certificate_eligible = bool(certificate_eligible)
+        question.save(
+            update_fields=[
+                "review_status",
+                "reviewed_by",
+                "reviewed_at",
+                "review_notes",
+                "is_certificate_eligible",
+                "updated_at",
+            ]
+        )
+        AuditService.record(
+            actor=reviewer,
+            action="quiz_question_approved",
+            target=question,
+            metadata={
+                "course_id": str(question.course_id),
+                "certificate_eligible": question.is_certificate_eligible,
+            },
+        )
+        return question
+
+    @staticmethod
+    def require_review(question: QuizQuestion, reviewer=None, *, notes: str = "") -> QuizQuestion:
+        if reviewer is not None and not QuestionReviewService.can_review(reviewer, question):
+            raise PermissionError("You cannot review this question.")
+        question.review_status = QuestionReviewStatus.REVIEW_REQUIRED
+        question.reviewed_by = (
+            reviewer if reviewer and getattr(reviewer, "is_authenticated", False) else None
+        )
+        question.reviewed_at = timezone.now() if reviewer else None
+        question.review_notes = notes
+        question.is_certificate_eligible = False
+        question.save(
+            update_fields=[
+                "review_status",
+                "reviewed_by",
+                "reviewed_at",
+                "review_notes",
+                "is_certificate_eligible",
+                "updated_at",
+            ]
+        )
+        return question

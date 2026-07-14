@@ -1,4 +1,5 @@
 import logging
+
 from celery import shared_task
 
 logger = logging.getLogger(__name__)
@@ -15,14 +16,12 @@ def generate_certificate(self, enrollment_id: str) -> None:
     Generate a PDF certificate for a completed enrollment.
     Triggered automatically when a student passes the course quiz.
     """
-    from apps.courses.models import Enrollment
     from apps.certificates.services import CertificateService
-    from common.exceptions import ConflictError
+    from apps.courses.models import Enrollment
+    from common.exceptions import ConflictError, ServiceError
 
     try:
-        enrollment = Enrollment.objects.select_related(
-            "user", "course"
-        ).get(id=enrollment_id)
+        enrollment = Enrollment.objects.select_related("user", "course").get(id=enrollment_id)
     except Enrollment.DoesNotExist:
         logger.error("Certificate generation failed: enrollment %s not found", enrollment_id)
         return
@@ -39,9 +38,16 @@ def generate_certificate(self, enrollment_id: str) -> None:
             "Certificate already exists for enrollment %s. Skipping.",
             enrollment_id,
         )
+    except ServiceError as exc:
+        logger.info(
+            "Certificate not eligible for enrollment %s. Skipping: %s",
+            enrollment_id,
+            exc,
+        )
     except Exception as exc:
         logger.error(
             "Certificate generation failed for enrollment %s: %s",
-            enrollment_id, exc,
+            enrollment_id,
+            exc,
         )
         raise

@@ -7,10 +7,11 @@ import qrcode
 from django.conf import settings
 from django.template.loader import render_to_string
 
-from common.exceptions import ServiceError, ConflictError
-from common.audit import AuditService
-from common.storage import upload_to_s3
 from apps.courses.models import Enrollment, EnrollmentStatus
+from common.audit import AuditService
+from common.exceptions import ConflictError, ServiceError
+from common.storage import upload_to_s3
+
 from .models import Certificate
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,48 @@ def _generate_qr_base64(url: str) -> str:
 
 
 class CertificateService:
+    @staticmethod
+    def eligibility(enrollment: Enrollment) -> tuple[bool, list[str]]:
+        reasons = []
+        course = enrollment.course
+        if course.status != "published" or course.deleted_at is not None:
+            reasons.append("Course must be published before certificates can be issued.")
+        published_lessons = course.lessons.filter(is_published=True, deleted_at=None)
+        if not published_lessons.exists():
+            reasons.append("Course must have published lessons before certificates can be issued.")
+        completed_ids = set(
+            enrollment.lesson_progress.filter(is_completed=True).values_list("lesson_id", flat=True)
+        )
+        incomplete = [
+            lesson.title for lesson in published_lessons if lesson.id not in completed_ids
+        ]
+        if incomplete:
+            reasons.append("All published lessons must be completed.")
+        from apps.assessments.models import QuestionReviewStatus, QuizAttempt, QuizQuestion
+
+        approved_questions = QuizQuestion.objects.filter(
+            course=course,
+            review_status=QuestionReviewStatus.APPROVED,
+            is_certificate_eligible=True,
+        )
+        if approved_questions.count() < 5:
+            reasons.append(
+                "At least five approved certificate-eligible assessment questions are required."
+            )
+        if QuizQuestion.objects.filter(
+            course=course,
+            explanation__icontains="[REVIEW REQUIRED]",
+        ).exists():
+            reasons.append("Review-required assessment content cannot be used for certificates.")
+        if not QuizAttempt.objects.filter(enrollment=enrollment, passed=True).exists():
+            reasons.append(
+                "Student must pass the approved course quiz before receiving a certificate."
+            )
+        if "requires-final-project" in (course.tags or []):
+            reasons.append(
+                "Final project completion must be verified before certificates can be issued."
+            )
+        return not reasons, reasons
 
     @staticmethod
     def generate(enrollment: Enrollment) -> Certificate:
@@ -58,21 +101,11 @@ class CertificateService:
         - Creates Certificate record in database
         """
         if enrollment.status != EnrollmentStatus.COMPLETED:
-            raise ServiceError(
-                "Certificate can only be issued for completed enrollments."
-            )
+            raise ServiceError("Certificate can only be issued for completed enrollments.")
 
-        # Check quiz was passed
-        from apps.assessments.models import QuizAttempt
-        quiz_exists = enrollment.course.quiz_questions.exists()
-        if quiz_exists:
-            passed = QuizAttempt.objects.filter(
-                enrollment=enrollment, passed=True
-            ).exists()
-            if not passed:
-                raise ServiceError(
-                    "Student must pass the course quiz before receiving a certificate."
-                )
+        eligible, reasons = CertificateService.eligibility(enrollment)
+        if not eligible:
+            raise ServiceError("Certificate eligibility failed: " + " ".join(reasons))
 
         # Check for existing certificate
         if Certificate.objects.filter(enrollment=enrollment).exists():
@@ -83,9 +116,7 @@ class CertificateService:
         qr_base64 = _generate_qr_base64(verify_url)
 
         issued_date = (
-            enrollment.completed_at.strftime("%B %d, %Y")
-            if enrollment.completed_at
-            else "N/A"
+            enrollment.completed_at.strftime("%B %d, %Y") if enrollment.completed_at else "N/A"
         )
 
         html_content = render_to_string(
@@ -128,6 +159,7 @@ class CertificateService:
 
         # Send completion email with certificate attached
         from tasks.email import send_certificate_email
+
         send_certificate_email.delay(str(certificate.id))
 
         return certificate
@@ -137,6 +169,7 @@ class CertificateService:
         """Render HTML to PDF and upload to S3. Returns the PDF URL."""
         try:
             from weasyprint import HTML
+
             pdf_buffer = BytesIO()
             HTML(string=html_content).write_pdf(pdf_buffer)
             pdf_buffer.seek(0)
@@ -171,9 +204,7 @@ class CertificateService:
         Returns structured data for the public verification endpoint.
         """
         try:
-            cert = Certificate.objects.select_related(
-                "user", "course"
-            ).get(cert_number=cert_number)
+            cert = Certificate.objects.select_related("user", "course").get(cert_number=cert_number)
         except Certificate.DoesNotExist:
             return {
                 "valid": False,

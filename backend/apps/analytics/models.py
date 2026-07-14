@@ -16,6 +16,11 @@ class AnalyticsEvent(BaseModel):
     organization_id = models.UUIDField(null=True, blank=True, db_index=True)
     target_type = models.CharField(max_length=100, blank=True, default="", db_index=True)
     target_id = models.CharField(max_length=100, blank=True, default="", db_index=True)
+    category = models.CharField(max_length=50, blank=True, default="engagement", db_index=True)
+    source = models.CharField(max_length=80, blank=True, default="application", db_index=True)
+    actor_type = models.CharField(max_length=40, blank=True, default="user", db_index=True)
+    is_system_event = models.BooleanField(default=False, db_index=True)
+    counts_toward_engagement = models.BooleanField(default=True, db_index=True)
     metadata = models.JSONField(default=dict, blank=True)
     occurred_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
@@ -24,6 +29,12 @@ class AnalyticsEvent(BaseModel):
         indexes = [
             models.Index(fields=["name", "occurred_at"], name="analytics_e_name_928f4a_idx"),
             models.Index(fields=["user", "occurred_at"], name="analytics_e_user_id_661693_idx"),
-            models.Index(fields=["organization_id", "occurred_at"], name="analytics_e_organiz_f8d02d_idx"),
-            models.Index(fields=["target_type", "target_id"], name="analytics_e_target__40fcc2_idx"),
+            models.Index(
+                fields=["organization_id", "occurred_at"], name="analytics_e_organiz_f8d02d_idx"
+            ),
+            models.Index(
+                fields=["target_type", "target_id"], name="analytics_e_target__40fcc2_idx"
+            ),
+            models.Index(fields=["category", "occurred_at"], name="analytics_e_category_idx"),
+            models.Index(fields=["is_system_event", "occurred_at"], name="analytics_e_system_idx"),
         ]

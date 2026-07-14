@@ -1,15 +1,23 @@
 import logging
+
 from django.db import transaction
 from django.utils import timezone
 
-from common.exceptions import ServiceError, ConflictError, NotFoundError, PermissionError
+from apps.analytics.services import AnalyticsService
 from common.audit import AuditService
 from common.entitlements import EntitlementService
+from common.exceptions import ConflictError, NotFoundError, PermissionError, ServiceError
 from common.storage import generate_presigned_upload_url
-from apps.analytics.services import AnalyticsService
+
 from .models import (
-    Course, Lesson, VideoLesson, Enrollment, LessonProgress,
-    CourseStatus, EnrollmentStatus, TranscodingStatus,
+    Course,
+    CourseStatus,
+    Enrollment,
+    EnrollmentStatus,
+    Lesson,
+    LessonProgress,
+    TranscodingStatus,
+    VideoLesson,
 )
 
 logger = logging.getLogger(__name__)
@@ -18,6 +26,49 @@ VIDEO_COMPLETION_THRESHOLD = 90  # percent
 
 
 class CourseService:
+    @staticmethod
+    def publish_validation_errors(course) -> list[str]:
+        errors = []
+        if not course.instructor_id or not getattr(course.instructor, "is_active", False):
+            errors.append("Course must have an active instructor.")
+        if not course.description.strip() or not course.short_description.strip():
+            errors.append("Course description and short description are required.")
+        if not course.what_you_learn:
+            errors.append("Course learning objectives are required.")
+        if not course.requirements:
+            errors.append("Course prerequisites are required.")
+        published_lessons = course.lessons.filter(is_published=True, deleted_at=None)
+        if not published_lessons.exists():
+            errors.append("Publish at least one lesson before publishing the course.")
+        if published_lessons.filter(content__exact="").exists():
+            errors.append("Published lessons cannot have empty content.")
+        for lesson in published_lessons:
+            if (
+                "[REVIEW REQUIRED]" in lesson.content
+                or "Content status: review_required" in lesson.content
+            ):
+                errors.append("Published lessons cannot contain review-required markers.")
+                break
+        try:
+            from apps.assessments.models import QuestionReviewStatus, QuizQuestion
+
+            approved_count = QuizQuestion.objects.filter(
+                course=course,
+                review_status=QuestionReviewStatus.APPROVED,
+                is_certificate_eligible=True,
+            ).count()
+            if course.quiz_questions.exists() and approved_count < 5:
+                errors.append(
+                    "Courses with assessments need at least five approved "
+                    "certificate-eligible questions before publishing."
+                )
+            if course.quiz_questions.filter(explanation__icontains="[REVIEW REQUIRED]").exists():
+                errors.append("Assessment content still contains review-required markers.")
+        except Exception as exc:
+            logger.warning("Course publish assessment validation skipped: %s", exc)
+        if "requires-final-project" in (course.tags or []):
+            errors.append("Final project completion rules must be configured before publishing.")
+        return errors
 
     @staticmethod
     def get_published_courses(filters=None):
@@ -45,8 +96,9 @@ class CourseService:
     def publish_course(course, instructor):
         if course.instructor != instructor:
             raise PermissionError("You do not own this course.")
-        if not course.lessons.filter(is_published=True, deleted_at=None).exists():
-            raise ServiceError("Publish at least one lesson before publishing the course.")
+        errors = CourseService.publish_validation_errors(course)
+        if errors:
+            raise ServiceError("Course is not ready to publish: " + " ".join(errors))
         course.status = CourseStatus.PUBLISHED
         course.save(update_fields=["status", "updated_at"])
         AuditService.record(
@@ -69,7 +121,6 @@ class CourseService:
 
 
 class LessonService:
-
     @staticmethod
     def get_upload_url(lesson, file_name, content_type="video/mp4"):
         """
@@ -115,11 +166,12 @@ class LessonService:
         video_lesson.original_s3_key = s3_key
         video_lesson.file_size_bytes = file_size_bytes
         video_lesson.transcoding_status = TranscodingStatus.PROCESSING
-        video_lesson.save(update_fields=[
-            "original_s3_key", "file_size_bytes", "transcoding_status"
-        ])
+        video_lesson.save(
+            update_fields=["original_s3_key", "file_size_bytes", "transcoding_status"]
+        )
 
         from tasks.video import trigger_transcoding
+
         trigger_transcoding.delay(
             s3_key=s3_key,
             lesson_id=str(lesson.id),
@@ -130,8 +182,9 @@ class LessonService:
         return video_lesson
 
     @staticmethod
-    def handle_transcoding_complete(video_lesson_id, hls_s3_key, hls_url,
-                                     thumbnail_url, duration_seconds):
+    def handle_transcoding_complete(
+        video_lesson_id, hls_s3_key, hls_url, thumbnail_url, duration_seconds
+    ):
         """
         Called by the MediaConvert completion webhook.
         Updates the VideoLesson with the HLS stream URL.
@@ -147,15 +200,20 @@ class LessonService:
         video_lesson.thumbnail_url = thumbnail_url
         video_lesson.duration_seconds = duration_seconds
         video_lesson.transcoding_status = TranscodingStatus.COMPLETE
-        video_lesson.save(update_fields=[
-            "hls_s3_key", "hls_url", "thumbnail_url",
-            "duration_seconds", "transcoding_status", "updated_at",
-        ])
+        video_lesson.save(
+            update_fields=[
+                "hls_s3_key",
+                "hls_url",
+                "thumbnail_url",
+                "duration_seconds",
+                "transcoding_status",
+                "updated_at",
+            ]
+        )
         logger.info("Transcoding complete for VideoLesson %s", video_lesson_id)
 
 
 class EnrollmentService:
-
     @staticmethod
     @transaction.atomic
     def enroll(user, course):
@@ -166,7 +224,9 @@ class EnrollmentService:
         if Enrollment.objects.filter(user=user, course=course).exists():
             raise ConflictError("You are already enrolled in this course.")
         if course.price > 0 and not EntitlementService.can_access_course(user, course):
-            raise PermissionError("An active subscription or entitlement is required to enroll in paid courses.")
+            raise PermissionError(
+                "An active subscription or entitlement is required to enroll in paid courses."
+            )
         enrollment = Enrollment.objects.create(
             user=user,
             course=course,
@@ -186,12 +246,11 @@ class EnrollmentService:
     def get_enrollment(user, course):
         try:
             return Enrollment.objects.get(user=user, course=course)
-        except Enrollment.DoesNotExist:
-            raise NotFoundError("You are not enrolled in this course.")
+        except Enrollment.DoesNotExist as exc:
+            raise NotFoundError("You are not enrolled in this course.") from exc
 
 
 class ProgressService:
-
     @staticmethod
     @transaction.atomic
     def update_progress(enrollment, lesson, watch_percentage, last_position_seconds=0):
@@ -210,10 +269,15 @@ class ProgressService:
             progress.is_completed = True
             progress.completed_at = timezone.now()
 
-        progress.save(update_fields=[
-            "watch_percentage", "last_position_seconds",
-            "is_completed", "completed_at", "updated_at",
-        ])
+        progress.save(
+            update_fields=[
+                "watch_percentage",
+                "last_position_seconds",
+                "is_completed",
+                "completed_at",
+                "updated_at",
+            ]
+        )
 
         enrollment.last_accessed_at = timezone.now()
         enrollment.save(update_fields=["last_accessed_at"])
@@ -241,19 +305,17 @@ class ProgressService:
             progress.is_completed = True
             progress.watch_percentage = 100
             progress.completed_at = timezone.now()
-            progress.save(update_fields=[
-                "is_completed", "watch_percentage", "completed_at", "updated_at"
-            ])
+            progress.save(
+                update_fields=["is_completed", "watch_percentage", "completed_at", "updated_at"]
+            )
             ProgressService._check_course_completion(enrollment)
         return progress
 
     @staticmethod
     def get_course_progress(enrollment):
-        total = enrollment.course.lessons.filter(
-            is_published=True, deleted_at=None
-        ).count()
+        total = enrollment.course.lessons.filter(is_published=True, deleted_at=None).count()
         completed = enrollment.lesson_progress.filter(is_completed=True).count()
-        percentage = round((completed / total * 100)) if total > 0 else 0
+        percentage = round(completed / total * 100) if total > 0 else 0
         return {
             "total_lessons": total,
             "completed_lessons": completed,
@@ -262,9 +324,7 @@ class ProgressService:
 
     @staticmethod
     def _check_course_completion(enrollment):
-        total = enrollment.course.lessons.filter(
-            is_published=True, deleted_at=None
-        ).count()
+        total = enrollment.course.lessons.filter(is_published=True, deleted_at=None).count()
         completed = enrollment.lesson_progress.filter(is_completed=True).count()
 
         if total > 0 and completed >= total:
@@ -277,24 +337,26 @@ class ProgressService:
                 enrollment.course.title,
             )
             from tasks.certificates import generate_certificate
+
             generate_certificate.delay(str(enrollment.id))
 
 
 class LessonReorderService:
-
     @staticmethod
     def reorder(course, reorder_data, instructor):
-        from django.db import transaction
-        from common.exceptions import PermissionError, ServiceError
-        from .models import Lesson
         import logging
+
+        from django.db import transaction
+
+        from common.exceptions import PermissionError, ServiceError
+
         logger = logging.getLogger(__name__)
 
         if course.instructor != instructor:
-            raise PermissionError('You do not own this course.')
+            raise PermissionError("You do not own this course.")
 
-        submitted_ids = {str(item['id']) for item in reorder_data}
-        existing_lessons = list(course.lessons.filter(deleted_at=None).only('id', 'position'))
+        submitted_ids = {str(item["id"]) for item in reorder_data}
+        existing_lessons = list(course.lessons.filter(deleted_at=None).only("id", "position"))
         existing_ids = {str(lesson.id) for lesson in existing_lessons}
 
         missing = existing_ids - submitted_ids
@@ -302,51 +364,63 @@ class LessonReorderService:
 
         if missing:
             raise ServiceError(
-                'Missing lesson IDs in reorder payload: ' + ', '.join(missing) + '. All lessons must be included.'
+                "Missing lesson IDs in reorder payload: "
+                + ", ".join(missing)
+                + ". All lessons must be included."
             )
         if extra:
-            raise ServiceError('Unknown lesson IDs submitted: ' + ', '.join(extra) + '.')
+            raise ServiceError("Unknown lesson IDs submitted: " + ", ".join(extra) + ".")
 
-        position_map = {str(item['id']): item['position'] for item in reorder_data}
+        position_map = {str(item["id"]): item["position"] for item in reorder_data}
 
         with transaction.atomic():
             for lesson in existing_lessons:
                 lesson.position = position_map[str(lesson.id)]
-            Lesson.objects.bulk_update(existing_lessons, ['position'])
+            Lesson.objects.bulk_update(existing_lessons, ["position"])
 
-        logger.info('Reordered %d lessons in course %s by %s', len(existing_lessons), course.id, instructor.email)
-        return list(course.lessons.filter(deleted_at=None).order_by('position'))
+        logger.info(
+            "Reordered %d lessons in course %s by %s",
+            len(existing_lessons),
+            course.id,
+            instructor.email,
+        )
+        return list(course.lessons.filter(deleted_at=None).order_by("position"))
 
     @staticmethod
     def validate_unique_positions(course, exclude_lesson_id=None):
         qs = course.lessons.filter(deleted_at=None)
         if exclude_lesson_id:
             qs = qs.exclude(id=exclude_lesson_id)
-        positions = list(qs.values_list('position', flat=True))
+        positions = list(qs.values_list("position", flat=True))
         return len(positions) == len(set(positions))
 
 
 class LessonInlineUpdateService:
-
-    ALLOWED_FIELDS = {'title', 'lesson_type', 'content', 'is_published', 'is_free_preview'}
+    ALLOWED_FIELDS = {"title", "lesson_type", "content", "is_published", "is_free_preview"}
 
     @staticmethod
     def update(lesson, data, instructor):
-        from common.exceptions import PermissionError, ServiceError
         import logging
+
+        from common.exceptions import PermissionError, ServiceError
+
         logger = logging.getLogger(__name__)
 
         if lesson.course.instructor != instructor:
-            raise PermissionError('You do not own this course.')
+            raise PermissionError("You do not own this course.")
 
-        if data.get('is_published') is True and lesson.lesson_type == 'video':
+        if data.get("is_published") is True and lesson.lesson_type == "video":
             try:
                 video = lesson.video
-                if video.transcoding_status != 'complete':
-                    raise ServiceError('Cannot publish a video lesson until transcoding is complete.')
+                if video.transcoding_status != "complete":
+                    raise ServiceError(
+                        "Cannot publish a video lesson until transcoding is complete."
+                    )
             except Exception as e:
-                if 'DoesNotExist' in type(e).__name__:
-                    raise ServiceError('Cannot publish a video lesson that has no video uploaded.')
+                if "DoesNotExist" in type(e).__name__:
+                    raise ServiceError(
+                        "Cannot publish a video lesson that has no video uploaded."
+                    ) from e
                 raise
 
         update_fields = []
@@ -356,8 +430,10 @@ class LessonInlineUpdateService:
                 update_fields.append(field)
 
         if update_fields:
-            update_fields.append('updated_at')
+            update_fields.append("updated_at")
             lesson.save(update_fields=update_fields)
-            logger.info('Lesson %s updated fields %s by %s', lesson.id, update_fields, instructor.email)
+            logger.info(
+                "Lesson %s updated fields %s by %s", lesson.id, update_fields, instructor.email
+            )
 
         return lesson

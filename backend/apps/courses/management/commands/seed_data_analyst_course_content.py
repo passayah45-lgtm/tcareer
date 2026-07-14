@@ -30,6 +30,11 @@ class Command(BaseCommand):
         parser.add_argument("--instructor-email", required=True)
         parser.add_argument("--update-existing", action="store_true")
         parser.add_argument(
+            "--fields",
+            default="",
+            help="Comma-separated update fields: lesson_content,objectives,exercises,assessments.",
+        )
+        parser.add_argument(
             "--publish-ready",
             action="store_true",
             help="Mark content as review-ready in metadata/audit only. Does not publish.",
@@ -66,6 +71,13 @@ class Command(BaseCommand):
             raise CommandError("Choose --course <slug> or --all-courses.")
         if not settings.DEBUG and not options["dry_run"] and not options["confirm_production"]:
             raise CommandError("Refusing production write without --confirm-production.")
+        allowed_fields = {"lesson_content", "objectives", "exercises", "assessments"}
+        requested = self._requested_fields(options)
+        unknown = requested - allowed_fields
+        if unknown:
+            raise CommandError("Unsupported --fields value(s): " + ", ".join(sorted(unknown)))
+        if options["update_existing"] and options["all_courses"] and requested:
+            raise CommandError("Field-level --update-existing is only supported with --course.")
 
     def _get_instructor(self, email: str):
         User = get_user_model()
@@ -91,6 +103,7 @@ class Command(BaseCommand):
 
     def _build_plan(self, slugs: list[str], instructor, options: dict[str, Any]):
         plan = []
+        requested_fields = self._requested_fields(options)
         for slug in slugs:
             curriculum = CURRICULA[slug]
             try:
@@ -98,9 +111,7 @@ class Command(BaseCommand):
             except Course.DoesNotExist as exc:
                 raise CommandError(f"Course shell not found: {slug}") from exc
             if course.instructor_id != instructor.id and not instructor.is_staff:
-                raise CommandError(
-                    f"Instructor {instructor.email} does not own course {slug}."
-                )
+                raise CommandError(f"Instructor {instructor.email} does not own course {slug}.")
             lessons = []
             position = 0
             for module in curriculum.modules:
@@ -112,7 +123,11 @@ class Command(BaseCommand):
                         deleted_at=None,
                     ).first()
                     action = "create" if existing is None else "keep"
-                    if existing and options["update_existing"]:
+                    if (
+                        existing
+                        and options["update_existing"]
+                        and self._should_update_lesson(requested_fields)
+                    ):
                         action = "update"
                     lessons.append(
                         {
@@ -129,8 +144,21 @@ class Command(BaseCommand):
                     course=course,
                     question_text=question.question_text,
                 ).first()
+                if (
+                    existing is None
+                    and options["update_existing"]
+                    and self._should_update_assessments(requested_fields)
+                ):
+                    existing = QuizQuestion.objects.filter(
+                        course=course,
+                        position=index * 10,
+                    ).first()
                 action = "create" if existing is None else "keep"
-                if existing and options["update_existing"]:
+                if (
+                    existing
+                    and options["update_existing"]
+                    and self._should_update_assessments(requested_fields)
+                ):
                     action = "update"
                 assessments.append(
                     {
@@ -154,6 +182,8 @@ class Command(BaseCommand):
         mode = "DRY RUN" if options["dry_run"] else "WRITE"
         self.stdout.write(f"Data Analyst curriculum plan ({mode})")
         self.stdout.write("Lessons remain draft. Courses are not published.")
+        if options.get("fields"):
+            self.stdout.write(f"Requested update fields: {options['fields']}")
         for item in plan:
             self.stdout.write(f"\nCourse: {item['course'].slug} ({item['course'].title})")
             self.stdout.write(
@@ -164,6 +194,12 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f"  - {lesson['position']:03d} {lesson['definition'].title} "
                     f"[{lesson['action']}]"
+                )
+            for assessment in item["assessments"]:
+                self.stdout.write(
+                    f"  - Q{assessment['position']:03d} "
+                    f"{assessment['definition'].lesson_mapping or 'course'} "
+                    f"[{assessment['action']}]"
                 )
 
     def _apply_plan(self, plan, options: dict[str, Any]) -> dict[str, int]:
@@ -195,7 +231,7 @@ class Command(BaseCommand):
                     )
                     result["lessons_created"] += 1
                     self._audit("lesson_seeded", "Lesson", lesson.id, course, lesson_def)
-                elif options["update_existing"]:
+                elif lesson_item["action"] == "update":
                     old_position = lesson.position
                     lesson.lesson_type = LessonType.TEXT
                     lesson.content = body
@@ -219,20 +255,32 @@ class Command(BaseCommand):
                         question_text=question_def.question_text,
                         options=list(question_def.options),
                         correct_index=question_def.correct_index,
-                        explanation=(
-                            "[REVIEW REQUIRED] " + question_def.explanation
-                        ),
+                        explanation=question_def.explanation,
                         position=assessment_item["position"],
+                        question_type=question_def.question_type,
+                        lesson_mapping=question_def.lesson_mapping,
+                        difficulty=question_def.difficulty,
+                        review_status=question_def.review_status,
+                        is_certificate_eligible=False,
                     )
                     result["assessments_created"] += 1
                     self._audit(
                         "assessment_seeded", "QuizQuestion", question.id, course, question_def
                     )
-                elif options["update_existing"]:
+                elif assessment_item["action"] == "update":
+                    question.question_text = question_def.question_text
                     question.options = list(question_def.options)
                     question.correct_index = question_def.correct_index
-                    question.explanation = "[REVIEW REQUIRED] " + question_def.explanation
+                    question.explanation = question_def.explanation
                     question.position = assessment_item["position"]
+                    question.question_type = question_def.question_type
+                    question.lesson_mapping = question_def.lesson_mapping
+                    question.difficulty = question_def.difficulty
+                    question.review_status = question_def.review_status
+                    question.reviewed_by = None
+                    question.reviewed_at = None
+                    question.review_notes = ""
+                    question.is_certificate_eligible = False
                     question.save()
                     result["assessments_updated"] += 1
                     self._audit(
@@ -254,6 +302,9 @@ class Command(BaseCommand):
         return result
 
     def _apply_course_metadata(self, course: Course, curriculum, options: dict[str, Any]) -> None:
+        requested = self._requested_fields(options)
+        if requested and "objectives" not in requested:
+            return
         if not options["update_existing"] and (course.requirements or course.what_you_learn):
             return
         course.requirements = list(curriculum.prerequisites)
@@ -266,6 +317,16 @@ class Command(BaseCommand):
         course.save(
             update_fields=["requirements", "what_you_learn", "tags", "status", "updated_at"]
         )
+
+    def _requested_fields(self, options: dict[str, Any]) -> set[str]:
+        raw = options.get("fields") or ""
+        return {field.strip() for field in raw.split(",") if field.strip()}
+
+    def _should_update_lesson(self, requested_fields: set[str]) -> bool:
+        return not requested_fields or bool({"lesson_content", "exercises"} & requested_fields)
+
+    def _should_update_assessments(self, requested_fields: set[str]) -> bool:
+        return not requested_fields or "assessments" in requested_fields
 
     def _safety_counts(self) -> tuple[int, int, int, int]:
         return (

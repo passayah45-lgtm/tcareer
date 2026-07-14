@@ -1,10 +1,18 @@
 from decimal import Decimal
+
 from rest_framework import serializers
+
 from apps.users.serializers import UserSerializer
 from common.uploads import UploadValidationService
+
 from .models import (
-    Course, Lesson, VideoLesson, Enrollment, LessonProgress,
-    CourseStatus, LessonType, CourseLevel,
+    Course,
+    CourseStatus,
+    Enrollment,
+    Lesson,
+    LessonProgress,
+    LessonType,
+    VideoLesson,
 )
 
 
@@ -12,8 +20,12 @@ class VideoLessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = VideoLesson
         fields = [
-            "id", "hls_url", "thumbnail_url", "duration_seconds",
-            "transcoding_status", "file_size_bytes",
+            "id",
+            "hls_url",
+            "thumbnail_url",
+            "duration_seconds",
+            "transcoding_status",
+            "file_size_bytes",
         ]
         read_only_fields = fields
 
@@ -25,8 +37,15 @@ class LessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
         fields = [
-            "id", "title", "lesson_type", "content", "position",
-            "is_published", "is_free_preview", "video", "is_accessible",
+            "id",
+            "title",
+            "lesson_type",
+            "content",
+            "position",
+            "is_published",
+            "is_free_preview",
+            "video",
+            "is_accessible",
         ]
         read_only_fields = ["id", "video", "is_accessible"]
 
@@ -37,9 +56,10 @@ class LessonSerializer(serializers.ModelSerializer):
         user = request.user
         if user.role in ("instructor", "admin"):
             return True
-        return Enrollment.objects.filter(
-            user=user, course=obj.course, status="active"
-        ).exists() or obj.is_free_preview
+        return (
+            Enrollment.objects.filter(user=user, course=obj.course, status="active").exists()
+            or obj.is_free_preview
+        )
 
 
 class LessonCreateSerializer(serializers.ModelSerializer):
@@ -61,18 +81,26 @@ class CourseListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = [
-            "id", "title", "slug", "short_description", "thumbnail_url",
-            "level", "status", "price", "language", "instructor_name",
-            "total_lessons", "is_enrolled", "created_at",
+            "id",
+            "title",
+            "slug",
+            "short_description",
+            "thumbnail_url",
+            "level",
+            "status",
+            "price",
+            "language",
+            "instructor_name",
+            "total_lessons",
+            "is_enrolled",
+            "created_at",
         ]
 
     def get_is_enrolled(self, obj):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return False
-        return Enrollment.objects.filter(
-            user=request.user, course=obj, status="active"
-        ).exists()
+        return Enrollment.objects.filter(user=request.user, course=obj, status="active").exists()
 
 
 class CourseDetailSerializer(serializers.ModelSerializer):
@@ -84,11 +112,27 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = [
-            "id", "title", "slug", "short_description", "description",
-            "thumbnail_url", "preview_video_url", "level", "status",
-            "price", "language", "tags", "requirements", "what_you_learn",
-            "pass_threshold", "instructor", "lessons", "total_lessons",
-            "is_enrolled", "created_at", "updated_at",
+            "id",
+            "title",
+            "slug",
+            "short_description",
+            "description",
+            "thumbnail_url",
+            "preview_video_url",
+            "level",
+            "status",
+            "price",
+            "language",
+            "tags",
+            "requirements",
+            "what_you_learn",
+            "pass_threshold",
+            "instructor",
+            "lessons",
+            "total_lessons",
+            "is_enrolled",
+            "created_at",
+            "updated_at",
         ]
 
     def get_lessons(self, obj):
@@ -99,18 +143,24 @@ class CourseDetailSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return False
-        return Enrollment.objects.filter(
-            user=request.user, course=obj, status="active"
-        ).exists()
+        return Enrollment.objects.filter(user=request.user, course=obj, status="active").exists()
 
 
 class CourseCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = [
-            "title", "short_description", "description", "thumbnail_url",
-            "level", "price", "language", "tags", "requirements",
-            "what_you_learn", "pass_threshold",
+            "title",
+            "short_description",
+            "description",
+            "thumbnail_url",
+            "level",
+            "price",
+            "language",
+            "tags",
+            "requirements",
+            "what_you_learn",
+            "pass_threshold",
         ]
 
     def validate_price(self, value):
@@ -132,18 +182,29 @@ class CourseUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = [
-            "title", "short_description", "description", "thumbnail_url",
-            "preview_video_url", "level", "price", "language", "tags",
-            "requirements", "what_you_learn", "pass_threshold", "status",
+            "title",
+            "short_description",
+            "description",
+            "thumbnail_url",
+            "preview_video_url",
+            "level",
+            "price",
+            "language",
+            "tags",
+            "requirements",
+            "what_you_learn",
+            "pass_threshold",
+            "status",
         ]
 
     def validate_status(self, value):
         course = self.instance
         if value == CourseStatus.PUBLISHED:
-            if not course.lessons.filter(is_published=True).exists():
-                raise serializers.ValidationError(
-                    "A course must have at least one published lesson before publishing."
-                )
+            from .services import CourseService
+
+            errors = CourseService.publish_validation_errors(course)
+            if errors:
+                raise serializers.ValidationError(" ".join(errors))
         return value
 
 
@@ -154,16 +215,27 @@ class EnrollmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Enrollment
         fields = [
-            "id", "course", "status", "amount_paid",
-            "completed_at", "last_accessed_at", "created_at",
+            "id",
+            "course",
+            "status",
+            "amount_paid",
+            "completed_at",
+            "last_accessed_at",
+            "created_at",
             "first_lesson_id",
         ]
-        read_only_fields = ["id", "course", "status", "amount_paid", "completed_at", "last_accessed_at", "created_at"]
+        read_only_fields = [
+            "id",
+            "course",
+            "status",
+            "amount_paid",
+            "completed_at",
+            "last_accessed_at",
+            "created_at",
+        ]
 
     def get_first_lesson_id(self, obj):
-        lesson = obj.course.lessons.filter(
-            is_published=True
-        ).order_by("position").first()
+        lesson = obj.course.lessons.filter(is_published=True).order_by("position").first()
         return str(lesson.id) if lesson else None
 
 
@@ -174,8 +246,13 @@ class LessonProgressSerializer(serializers.ModelSerializer):
     class Meta:
         model = LessonProgress
         fields = [
-            "id", "lesson_id", "lesson_title", "is_completed",
-            "watch_percentage", "last_position_seconds", "completed_at",
+            "id",
+            "lesson_id",
+            "lesson_title",
+            "is_completed",
+            "watch_percentage",
+            "last_position_seconds",
+            "completed_at",
         ]
         read_only_fields = ["id", "lesson_id", "lesson_title", "completed_at"]
 
@@ -217,24 +294,22 @@ class LessonReorderSerializer(serializers.Serializer):
     lessons = LessonReorderItemSerializer(many=True, min_length=1)
 
     def validate_lessons(self, value):
-        positions = [item['position'] for item in value]
+        positions = [item["position"] for item in value]
         if len(positions) != len(set(positions)):
-            raise serializers.ValidationError(
-                'Lesson positions must be unique within the course.'
-            )
+            raise serializers.ValidationError("Lesson positions must be unique within the course.")
         return value
 
 
 class LessonInlineUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
-        fields = ['title', 'lesson_type', 'content', 'is_published', 'is_free_preview']
+        fields = ["title", "lesson_type", "content", "is_published", "is_free_preview"]
 
     def validate_lesson_type(self, value):
         valid = [choice[0] for choice in LessonType.choices]
         if value not in valid:
             raise serializers.ValidationError(
-                'Invalid lesson type. Choose from: ' + ', '.join(valid) + '.'
+                "Invalid lesson type. Choose from: " + ", ".join(valid) + "."
             )
         return value
 
@@ -247,21 +322,21 @@ class QuizQuestionBulkItemSerializer(serializers.Serializer):
         max_length=4,
     )
     correct_index = serializers.IntegerField(min_value=0)
-    explanation = serializers.CharField(max_length=2000, allow_blank=True, default='')
+    explanation = serializers.CharField(max_length=2000, allow_blank=True, default="")
     position = serializers.IntegerField(min_value=0, default=0)
 
     def validate(self, data):
-        options = data.get('options', [])
-        correct_index = data.get('correct_index', 0)
+        options = data.get("options", [])
+        correct_index = data.get("correct_index", 0)
         if any(not str(opt).strip() for opt in options):
-            raise serializers.ValidationError({'options': 'Options cannot be empty strings.'})
+            raise serializers.ValidationError({"options": "Options cannot be empty strings."})
         if correct_index >= len(options):
             raise serializers.ValidationError(
-                {'correct_index': 'correct_index must be less than the number of options.'}
+                {"correct_index": "correct_index must be less than the number of options."}
             )
         while len(options) < 4:
-            options.append('Option ' + str(len(options) + 1))
-        data['options'] = options
+            options.append("Option " + str(len(options) + 1))
+        data["options"] = options
         return data
 
 
@@ -272,6 +347,6 @@ class QuizQuestionBulkCreateSerializer(serializers.Serializer):
     def validate_questions(self, value):
         if len(value) > 50:
             raise serializers.ValidationError(
-                'Cannot create more than 50 questions in a single request.'
+                "Cannot create more than 50 questions in a single request."
             )
         return value

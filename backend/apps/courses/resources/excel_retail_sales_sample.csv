@@ -1,0 +1,151 @@
+order_id,order_date,region,city,salesperson,product,category,units,unit_price,discount,revenue,cost,profit,customer_segment
+ORD-1000,13/01/2026, EAST ,Accra,Salesperson D, Laptop Stand ,Accessories,3,24.50,0.10,66.15,39.75,26.40,Consumer
+ORD-1001,2026-06-09, EAST ,Dakar,Salesperson A,Laptop Stand,Accessories,5,24.50,0,122.50,66.25,56.25,Consumer
+ORD-1002,2026-04-26,south, Nairobi ,Salesperson B,Wireless Mouse,Accessories,3,18.00,0.05,51.30,28.20,23.10,Education
+ORD-1003,2026-04-17, EAST ,Dakar,Salesperson C,Notebook Pack,Stationery,8,8.25,,66.00,30.40,35.60,Consumer
+ORD-1004,2026-03-11, EAST ,Lagos,Salesperson D,Desk Lamp,,9,32.75,0.10,265.28,153.90,111.38,Consumer
+ORD-1005,2026-01-27, EAST ,Accra,Salesperson B,Desk Lamp,,3,32.75,0,98.25,51.30,46.95,Consumer
+ORD-1006,2026-06-25,North,Dakar,Salesperson C,Laptop Stand,Accessories,5,24.50,,122.50,66.25,56.25,Enterprise
+ORD-1007,2026-04-14,south,Kigali,Salesperson A,Notebook Pack,Stationery,10,8.25,0.05,78.38,38.00,40.38,Enterprise
+ORD-1008,2026-04-28,North,Lagos,Salesperson D,Notebook Pack,Stationery,10,8.25,0,82.50,38.00,44.50,Enterprise
+ORD-1009,2026-04-24,North,Kigali,Salesperson A,Notebook Pack,Stationery,7,8.25,0.05,54.86,26.60,28.26,Enterprise
+ORD-1010,2026-06-08,south, Nairobi ,Salesperson D,Office Chair,Furniture,6,145.00,,870.00,534.00,336.00,Enterprise
+ORD-1011,2026-06-11,West,Abidjan,Salesperson B,Wireless Mouse,Accessories,13,18.00,0.15,198.90,122.20,76.70,Education
+ORD-1012,2026-06-26,Central,Kigali,Salesperson A,Laptop Stand,Accessories,12,24.50,0.05,279.30,159.00,120.30,Education
+ORD-1013,2026-02-01,south, Nairobi ,Salesperson D,Laptop Stand,Accessories,8,24.50,0.05,186.20,106.00,80.20,Consumer
+ORD-1014,2026-06-18,west, Nairobi ,Salesperson C,Notebook Pack,Stationery,7,8.25,0.10,51.98,26.60,25.38,Consumer
+ORD-1015,2026-04-15,Central,Abidjan,Salesperson A,Office Chair,Furniture,9,145.00,,1305.00,801.00,504.00,Small Business
+ORD-1016,2026-04-05,west, Nairobi ,Salesperson D,USB-C Hub,Electronics,2,49.99,,99.98,57.00,42.98,Education
+ORD-1017,03/06/2026,North, Nairobi ,Salesperson C,Laptop Stand,Accessories,3,24.50,0.05,69.82,39.75,30.07,Small Business
+ORD-1018,2026-04-03,Central,Abidjan,Salesperson B,Notebook Pack,Stationery,6,8.25,,49.50,22.80,26.70,Enterprise
+ORD-1019,04/01/2026,Central,Accra,Salesperson B,Laptop Stand,Accessories,18,24.50,0.15,374.85,238.50,136.35,Consumer
+ORD-1020,2026-02-17,south,Lagos,Salesperson B,Office Chair,Furniture,10,145.00,0.10,1305.00,890.00,415.00,Enterprise
+ORD-1021,2026-04-23,North,Accra,Salesperson A,USB-C Hub,Electronics,6,49.99,0.10,269.95,171.00,98.95,Consumer
+ORD-1022,2026-05-22,west,Lagos,Salesperson C,Desk Lamp,,9,32.75,0,294.75,153.90,140.85,Education
+ORD-1023,2026-05-31,south,Kigali,Salesperson D, Laptop Stand ,Accessories,3,24.50,0.15,62.48,39.75,22.73,Education
+ORD-1024,2026-03-05,Central,Kigali,Salesperson B,Wireless Mouse,Accessories,1,18.00,0,18.00,9.40,8.60,Enterprise
+ORD-1025,2026-03-23,west,Kigali,Salesperson C,Desk Lamp,,7,32.75,,229.25,119.70,109.55,Education
+ORD-1026,2026-01-18,North, Nairobi ,Salesperson D,Laptop Stand,Accessories,18,24.50,0.15,374.85,238.50,136.35,Small Business
+ORD-1027,2026-06-11,North,Abidjan,Salesperson C,Office Chair,Furniture,3,145.00,0,435.00,267.00,168.00,Enterprise
+ORD-1028,2026-05-10,west,Abidjan,Salesperson D,USB-C Hub,Electronics,17,49.99,0.10,764.85,484.50,280.35,Education
+ORD-1028,2026-05-10,west,Abidjan,Salesperson D,USB-C Hub,Electronics,17,49.99,0.10,764.85,484.50,280.35,Education
+ORD-1029,2026-04-24,west,Kigali,Salesperson C,Wireless Mouse,Accessories,8,18.00,0,144.00,75.20,68.80,Small Business
+ORD-1030,2026-04-11,Central,Kigali,Salesperson A,Office Chair,Furniture,10,145.00,0.10,1305.00,890.00,415.00,Education
+ORD-1031,2026-05-12,Central,Dakar,Salesperson A,USB-C Hub,Electronics,8,49.99,0.15,339.93,228.00,111.93,Consumer
+ORD-1032,2026-05-01,Central,Kigali,Salesperson B,Desk Lamp,,12,32.75,0.10,353.70,205.20,148.50,Consumer
+ORD-1033,2026-02-21, EAST , Nairobi ,Salesperson B,Laptop Stand,Accessories,7,24.50,0.15,145.78,92.75,53.03,Enterprise
+ORD-1034,02/03/2026,West, Nairobi ,Salesperson D,Office Chair,Furniture,18,145.00,0.10,2349.00,1602.00,747.00,Small Business
+ORD-1035,2026-01-30, EAST ,Kigali,Salesperson D,Wireless Mouse,Accessories,8,18.00,0.15,122.40,75.20,47.20,Small Business
+ORD-1036,2026-02-18,West,Dakar,Salesperson B,Office Chair,Furniture,4,145.00,,580.00,356.00,224.00,Enterprise
+ORD-1037,2026-05-13,south,Lagos,Salesperson A,Notebook Pack,Stationery,1,8.25,0.15,7.01,3.80,3.21,Enterprise
+ORD-1038,02/26/2026,west,Kigali,Salesperson D,Office Chair,Furniture,9,145.00,0.15,1109.25,801.00,308.25,Consumer
+ORD-1039,2026-03-25,west, Nairobi ,Salesperson B,USB-C Hub,Electronics,9,49.99,,449.91,256.50,193.41,Small Business
+ORD-1040,2026-03-29,west,Lagos,Salesperson D,Wireless Mouse,Accessories,4,18.00,0.15,61.20,37.60,23.60,Education
+ORD-1041,2026-04-27,Central,Dakar,Salesperson D,USB-C Hub,Electronics,17,49.99,,849.83,484.50,365.33,Consumer
+ORD-1042,2026-01-06, EAST ,Dakar,Salesperson C,USB-C Hub,Electronics,18,49.99,0.10,809.84,513.00,296.84,Consumer
+ORD-1043,2026-04-14,North,Abidjan,Salesperson C,Office Chair,Furniture,5,145.00,0.15,616.25,445.00,171.25,Small Business
+ORD-1044,2026-02-27,south,Abidjan,Salesperson A,USB-C Hub,Electronics,14,49.99,,699.86,399.00,300.86,Small Business
+ORD-1045,2026-03-04,west,Kigali,Salesperson B,Laptop Stand,Accessories,15,24.50,0.05,349.12,198.75,150.37,Education
+ORD-1046,2026-05-29,south,Lagos,Salesperson C, USB-C Hub ,Electronics,1,49.99,0.10,44.99,28.50,16.49,Enterprise
+ORD-1047,2026-04-13,North, Nairobi ,Salesperson A,Wireless Mouse,Accessories,12,18.00,0,216.00,112.80,103.20,Enterprise
+ORD-1048,2026-06-13,West,Accra,Salesperson A,Wireless Mouse,Accessories,17,18.00,0.05,290.70,159.80,130.90,Enterprise
+ORD-1049,2026-02-18, EAST , Nairobi ,Salesperson B,Office Chair,Furniture,5,145.00,0.10,652.50,445.00,207.50,Small Business
+ORD-1050,2026-03-27,west,Kigali,Salesperson A,Desk Lamp,,3,32.75,0.15,83.51,51.30,32.21,Education
+ORD-1051,27/01/2026,Central,Kigali,Salesperson D,Desk Lamp,,16,32.75,0.10,471.60,273.60,198.00,Small Business
+ORD-1052,2026-06-01,Central,Dakar,Salesperson D,USB-C Hub,Electronics,12,49.99,0.15,509.90,342.00,167.90,Education
+ORD-1053,2026-06-24, EAST , Nairobi ,Salesperson D,Wireless Mouse,Accessories,11,18.00,,198.00,103.40,94.60,Small Business
+ORD-1054,2026-05-22,West, Nairobi ,Salesperson B,Notebook Pack,Stationery,16,8.25,0.05,125.40,60.80,64.60,Small Business
+ORD-1055,2026-06-10,North,Accra,Salesperson C,Wireless Mouse,Accessories,17,18.00,0.15,260.10,159.80,100.30,Small Business
+ORD-1056,2026-01-09,West,Accra,Salesperson A,Notebook Pack,Stationery,8,8.25,0.15,56.10,30.40,25.70,Consumer
+ORD-1057,03/07/2026,North,Dakar,Salesperson B,Notebook Pack,Stationery,3,8.25,0.10,22.28,11.40,10.88,Small Business
+ORD-1058,2026-04-20,Central,Dakar,Salesperson D,Laptop Stand,Accessories,12,24.50,0.10,264.60,159.00,105.60,Consumer
+ORD-1059,2026-04-22, EAST ,Abidjan,Salesperson B,Laptop Stand,Accessories,17,24.50,,416.50,225.25,191.25,Enterprise
+ORD-1060,2026-06-25,North,Lagos,Salesperson C,Notebook Pack,Stationery,15,8.25,0.05,117.56,57.00,60.56,Education
+ORD-1061,2026-04-11, EAST ,Dakar,Salesperson C,Laptop Stand,Accessories,13,24.50,0,318.50,172.25,146.25,Consumer
+ORD-1062,2026-02-08,Central,Kigali,Salesperson D,Office Chair,Furniture,7,145.00,0,1015.00,623.00,392.00,Small Business
+ORD-1063,2026-01-05,West,Dakar,Salesperson A,Laptop Stand,Accessories,17,24.50,0.10,374.85,225.25,149.60,Education
+ORD-1064,2026-04-30,Central,Kigali,Salesperson D,Wireless Mouse,Accessories,17,18.00,0.05,290.70,159.80,130.90,Enterprise
+ORD-1065,2026-06-03,west,Dakar,Salesperson A,Notebook Pack,Stationery,3,8.25,,24.75,11.40,13.35,Small Business
+ORD-1066,2026-03-25, EAST ,Accra,Salesperson D,Laptop Stand,Accessories,1,24.50,0.10,22.05,13.25,8.80,Enterprise
+ORD-1067,2026-01-30,west,Accra,Salesperson C,Laptop Stand,Accessories,2,24.50,0.15,41.65,26.50,15.15,Small Business
+ORD-1068,21/04/2026,Central,Abidjan,Salesperson B,Wireless Mouse,Accessories,6,18.00,0,108.00,56.40,51.60,Enterprise
+ORD-1069,2026-04-08,West,Abidjan,Salesperson B, USB-C Hub ,Electronics,1,49.99,0.15,42.49,28.50,13.99,Small Business
+ORD-1070,2026-01-06,west, Nairobi ,Salesperson D,Notebook Pack,Stationery,6,8.25,,49.50,22.80,26.70,Small Business
+ORD-1071,2026-04-13,Central,Kigali,Salesperson B,Wireless Mouse,Accessories,1,18.00,,18.00,9.40,8.60,Education
+ORD-1072,2026-02-08,west, Nairobi ,Salesperson D,Notebook Pack,Stationery,18,8.25,0.10,133.65,68.40,65.25,Consumer
+ORD-1073,2026-05-12,south, Nairobi ,Salesperson A,USB-C Hub,Electronics,3,49.99,0,149.97,85.50,64.47,Enterprise
+ORD-1074,2026-05-15,south,Accra,Salesperson B,USB-C Hub,Electronics,15,49.99,0.10,674.86,427.50,247.36,Enterprise
+ORD-1075,2026-02-26,North,Lagos,Salesperson B,Office Chair,Furniture,3,145.00,0.10,391.50,267.00,124.50,Consumer
+ORD-1076,01/28/2026,West,Kigali,Salesperson D,USB-C Hub,Electronics,8,49.99,,399.92,228.00,171.92,Consumer
+ORD-1077,2026-02-08,south,Dakar,Salesperson D,Desk Lamp,,12,32.75,0,393.00,205.20,187.80,Education
+ORD-1078,2026-05-06, EAST ,Lagos,Salesperson C,Office Chair,Furniture,2,145.00,0.15,246.50,178.00,68.50,Consumer
+ORD-1079,2026-03-17,south,Lagos,Salesperson D,USB-C Hub,Electronics,5,49.99,,249.95,142.50,107.45,Education
+ORD-1080,2026-04-16, EAST ,Lagos,Salesperson A,USB-C Hub,Electronics,16,49.99,,799.84,456.00,343.84,Education
+ORD-1081,2026-06-01,south,Lagos,Salesperson D,Laptop Stand,Accessories,6,24.50,,147.00,79.50,67.50,Consumer
+ORD-1082,2026-06-06,west,Kigali,Salesperson B,Desk Lamp,,1,32.75,0.05,31.11,17.10,14.01,Education
+ORD-1083,2026-06-20,North,Lagos,Salesperson B,Wireless Mouse,Accessories,14,18.00,0.05,239.40,131.60,107.80,Education
+ORD-1084,2026-01-29,west,Accra,Salesperson C,Notebook Pack,Stationery,18,8.25,,148.50,68.40,80.10,Enterprise
+ORD-1085,03/04/2026,West,Accra,Salesperson A,Office Chair,Furniture,8,145.00,0.15,986.00,712.00,274.00,Consumer
+ORD-1086,2026-02-19,North,Abidjan,Salesperson B,Wireless Mouse,Accessories,13,18.00,0.05,222.30,122.20,100.10,Consumer
+ORD-1087,2026-05-11,West,Dakar,Salesperson D,Office Chair,Furniture,5,145.00,,725.00,445.00,280.00,Small Business
+ORD-1088,2026-04-02, EAST ,Dakar,Salesperson C,Wireless Mouse,Accessories,13,18.00,0,234.00,122.20,111.80,Consumer
+ORD-1088,2026-04-02, EAST ,Dakar,Salesperson C,Wireless Mouse,Accessories,13,18.00,0,234.00,122.20,111.80,Consumer
+ORD-1089,2026-05-06,Central,Kigali,Salesperson C,Desk Lamp,,17,32.75,0,556.75,290.70,266.05,Education
+ORD-1090,2026-05-15,south,Lagos,Salesperson A,Wireless Mouse,Accessories,9,18.00,0.05,153.90,84.60,69.30,Education
+ORD-1091,2026-05-22, EAST ,Accra,Salesperson B,USB-C Hub,Electronics,12,49.99,0.15,509.90,342.00,167.90,Small Business
+ORD-1092,2026-01-26,Central,Dakar,Salesperson B, Desk Lamp ,,18,32.75,,589.50,307.80,281.70,Small Business
+ORD-1093,2026-03-10,North, Nairobi ,Salesperson B,Laptop Stand,Accessories,10,24.50,0.10,220.50,132.50,88.00,Enterprise
+ORD-1094,2026-06-16, EAST , Nairobi ,Salesperson A,Office Chair,Furniture,5,145.00,,725.00,445.00,280.00,Enterprise
+ORD-1095,03/10/2026,west,Kigali,Salesperson B,Laptop Stand,Accessories,15,24.50,0.10,330.75,198.75,132.00,Enterprise
+ORD-1096,2026-05-03,West,Abidjan,Salesperson B,USB-C Hub,Electronics,2,49.99,0.05,94.98,57.00,37.98,Education
+ORD-1097,2026-02-15,West, Nairobi ,Salesperson D,USB-C Hub,Electronics,13,49.99,0.15,552.39,370.50,181.89,Education
+ORD-1098,2026-01-10,Central,Dakar,Salesperson A,Laptop Stand,Accessories,7,24.50,0.15,145.78,92.75,53.03,Enterprise
+ORD-1099,2026-06-03,North,Dakar,Salesperson A,USB-C Hub,Electronics,5,49.99,0.15,212.46,142.50,69.96,Enterprise
+ORD-1100,2026-01-08,south,Accra,Salesperson C,Laptop Stand,Accessories,12,24.50,0.10,264.60,159.00,105.60,Education
+ORD-1101,2026-04-15,West,Dakar,Salesperson A,Laptop Stand,Accessories,13,24.50,0.05,302.58,172.25,130.33,Small Business
+ORD-1102,21/05/2026,West,Abidjan,Salesperson B,USB-C Hub,Electronics,1,49.99,,49.99,28.50,21.49,Education
+ORD-1103,2026-04-01, EAST ,Dakar,Salesperson A,Office Chair,Furniture,11,145.00,,1595.00,979.00,616.00,Small Business
+ORD-1104,2026-02-06,North,Accra,Salesperson B,Desk Lamp,,17,32.75,0,556.75,290.70,266.05,Education
+ORD-1105,2026-01-19,West,Lagos,Salesperson C,Desk Lamp,,16,32.75,0,524.00,273.60,250.40,Consumer
+ORD-1106,2026-06-13,North,Abidjan,Salesperson D,Desk Lamp,,1,32.75,0.15,27.84,17.10,10.74,Consumer
+ORD-1107,2026-05-13,North,Dakar,Salesperson D,Office Chair,Furniture,5,145.00,,725.00,445.00,280.00,Consumer
+ORD-1108,2026-03-01,North,Accra,Salesperson D,USB-C Hub,Electronics,2,49.99,0.05,94.98,57.00,37.98,Consumer
+ORD-1109,2026-06-10,North,Kigali,Salesperson A,Notebook Pack,Stationery,12,8.25,,99.00,45.60,53.40,Small Business
+ORD-1110,2026-04-01,West,Abidjan,Salesperson D,Wireless Mouse,Accessories,9,18.00,0.05,153.90,84.60,69.30,Enterprise
+ORD-1111,2026-05-30,West,Abidjan,Salesperson C,Notebook Pack,Stationery,5,8.25,0.10,37.12,19.00,18.12,Small Business
+ORD-1112,2026-05-19, EAST ,Lagos,Salesperson A,Wireless Mouse,Accessories,17,18.00,0,306.00,159.80,146.20,Small Business
+ORD-1113,2026-02-26, EAST ,Accra,Salesperson B,Office Chair,Furniture,3,145.00,,435.00,267.00,168.00,Enterprise
+ORD-1114,04/04/2026, EAST ,Abidjan,Salesperson B,Wireless Mouse,Accessories,1,18.00,0.15,15.30,9.40,5.90,Education
+ORD-1115,2026-02-21,West,Abidjan,Salesperson B, Laptop Stand ,Accessories,6,24.50,0.10,132.30,79.50,52.80,Education
+ORD-1116,2026-01-12,North,Lagos,Salesperson A,Laptop Stand,Accessories,10,24.50,0,245.00,132.50,112.50,Consumer
+ORD-1117,2026-06-23,North,Abidjan,Salesperson A,Desk Lamp,,5,32.75,0,163.75,85.50,78.25,Education
+ORD-1118,2026-04-26,west,Kigali,Salesperson C,USB-C Hub,Electronics,10,49.99,,499.90,285.00,214.90,Consumer
+ORD-1119,18/04/2026,Central, Nairobi ,Salesperson B,USB-C Hub,Electronics,12,49.99,,599.88,342.00,257.88,Consumer
+ORD-1120,2026-04-28,West,Accra,Salesperson D,Wireless Mouse,Accessories,9,18.00,,162.00,84.60,77.40,Consumer
+ORD-1121,2026-06-06,west,Abidjan,Salesperson C,Notebook Pack,Stationery,8,8.25,0.10,59.40,30.40,29.00,Small Business
+ORD-1122,2026-05-28,Central, Nairobi ,Salesperson A,Office Chair,Furniture,18,145.00,0.05,2479.50,1602.00,877.50,Education
+ORD-1123,2026-02-02,West,Lagos,Salesperson B,Wireless Mouse,Accessories,15,18.00,,270.00,141.00,129.00,Enterprise
+ORD-1124,2026-01-19,West,Abidjan,Salesperson D,Wireless Mouse,Accessories,10,18.00,0.15,153.00,94.00,59.00,Education
+ORD-1125,2026-03-22,south,Abidjan,Salesperson A,USB-C Hub,Electronics,1,49.99,,49.99,28.50,21.49,Enterprise
+ORD-1126,2026-03-13,North,Accra,Salesperson C,Office Chair,Furniture,10,145.00,,1450.00,890.00,560.00,Small Business
+ORD-1127,2026-05-01,West,Kigali,Salesperson D,USB-C Hub,Electronics,12,49.99,,599.88,342.00,257.88,Small Business
+ORD-1128,2026-05-12,west,Lagos,Salesperson D,Office Chair,Furniture,8,145.00,,1160.00,712.00,448.00,Education
+ORD-1129,2026-02-28,North,Lagos,Salesperson B,Wireless Mouse,Accessories,8,18.00,,144.00,75.20,68.80,Education
+ORD-1130,2026-01-18,west,Lagos,Salesperson C,Office Chair,Furniture,14,145.00,0.05,1928.50,1246.00,682.50,Consumer
+ORD-1131,2026-01-25,Central,Kigali,Salesperson D,USB-C Hub,Electronics,17,49.99,,849.83,484.50,365.33,Education
+ORD-1132,2026-05-18, EAST ,Lagos,Salesperson C,Desk Lamp,,11,32.75,0.15,306.21,188.10,118.11,Consumer
+ORD-1133,04/05/2026,west,Abidjan,Salesperson D,USB-C Hub,Electronics,16,49.99,0.10,719.86,456.00,263.86,Consumer
+ORD-1134,2026-04-05,west,Lagos,Salesperson B,Laptop Stand,Accessories,2,24.50,0,49.00,26.50,22.50,Enterprise
+ORD-1135,2026-03-07,Central,Accra,Salesperson A,Notebook Pack,Stationery,10,8.25,0.10,74.25,38.00,36.25,Consumer
+ORD-1136,03/05/2026,west,Dakar,Salesperson C,Wireless Mouse,Accessories,9,18.00,0.10,145.80,84.60,61.20,Enterprise
+ORD-1137,2026-05-10,west,Dakar,Salesperson C,USB-C Hub,Electronics,17,49.99,0.05,807.34,484.50,322.84,Small Business
+ORD-1138,2026-05-01,south,Accra,Salesperson C, Notebook Pack ,Stationery,3,8.25,,24.75,11.40,13.35,Consumer
+ORD-1139,2026-06-21,West,Abidjan,Salesperson B,Wireless Mouse,Accessories,10,18.00,0,180.00,94.00,86.00,Small Business
+ORD-1140,2026-03-15,south,Lagos,Salesperson A,Laptop Stand,Accessories,9,24.50,,220.50,119.25,101.25,Enterprise
+ORD-1141,2026-02-03,west,Kigali,Salesperson B,Desk Lamp,,9,32.75,,294.75,153.90,140.85,Small Business
+ORD-1142,2026-06-04,south,Abidjan,Salesperson A,USB-C Hub,Electronics,1,49.99,0.15,42.49,28.50,13.99,Consumer
+ORD-1143,2026-06-14,North,Accra,Salesperson D,Office Chair,Furniture,8,145.00,0.05,1102.00,712.00,390.00,Education
+ORD-1144,2026-05-05, EAST ,Abidjan,Salesperson C,Notebook Pack,Stationery,14,8.25,0.10,103.95,53.20,50.75,Enterprise
+ORD-1145,2026-01-14, EAST ,Abidjan,Salesperson B,Notebook Pack,Stationery,2,8.25,0.15,14.02,7.60,6.42,Consumer
+ORD-1146,2026-06-23,west,Abidjan,Salesperson A,Notebook Pack,Stationery,9,8.25,,74.25,34.20,40.05,Enterprise
+ORD-1147,2026-05-06,south,Abidjan,Salesperson C,Wireless Mouse,Accessories,8,18.00,0.15,122.40,75.20,47.20,Small Business
