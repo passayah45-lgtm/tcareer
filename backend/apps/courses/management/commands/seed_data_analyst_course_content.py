@@ -191,15 +191,27 @@ class Command(BaseCommand):
                 f"lessons={len(item['lessons'])} assessments={len(item['assessments'])}"
             )
             for lesson in item["lessons"]:
+                change_note = ""
+                if lesson["action"] == "update":
+                    change_note = " fields=lesson_type,content,position,is_published:false"
+                elif lesson["action"] == "create":
+                    change_note = " fields=lesson_type,content,position,is_published:false,is_free_preview:false"
                 self.stdout.write(
                     f"  - {lesson['position']:03d} {lesson['definition'].title} "
-                    f"[{lesson['action']}]"
+                    f"[{lesson['action']}]{change_note}"
                 )
             for assessment in item["assessments"]:
+                change_note = ""
+                if assessment["action"] in {"create", "update"}:
+                    change_note = (
+                        " fields=question_text,options,correct_index,explanation,position,"
+                        "question_type,lesson_mapping,difficulty,review_status:review_required,"
+                        "is_certificate_eligible:false"
+                    )
                 self.stdout.write(
                     f"  - Q{assessment['position']:03d} "
                     f"{assessment['definition'].lesson_mapping or 'course'} "
-                    f"[{assessment['action']}]"
+                    f"[{assessment['action']}]{change_note}"
                 )
 
     def _apply_plan(self, plan, options: dict[str, Any]) -> dict[str, int]:
