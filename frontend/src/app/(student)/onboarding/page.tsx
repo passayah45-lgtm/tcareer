@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AxiosError } from "axios";
 import { enrollInTrack } from "@/lib/api/tracks.api";
 
 const CAREER_GOALS = [
@@ -30,14 +31,22 @@ export default function OnboardingPage() {
   async function handleStart() {
     if (!selected) return;
     setLoading(true);
+    let shouldContinue = true;
     try {
       await enrollInTrack(selected);
-    } catch {
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 401) {
+        shouldContinue = false;
+        router.push("/login?next=/onboarding");
+      }
       // Already enrolled or track not found - continue anyway
     } finally {
-      // Store onboarding completion in localStorage
-      localStorage.setItem("onboarding_completed", "true");
-      router.push("/dashboard");
+      if (shouldContinue) {
+        // Store onboarding completion in localStorage
+        localStorage.setItem("onboarding_completed", "true");
+        router.push("/dashboard");
+      }
+      setLoading(false);
     }
   }
 

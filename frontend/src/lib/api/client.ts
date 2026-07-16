@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosError } from "axios";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const AUTH_CSRF_COOKIE_NAME = "tcareer_csrf";
 
 let accessToken: string | null = null;
 
@@ -10,6 +11,22 @@ export function setAccessToken(token: string | null) {
 
 export function getAccessToken(): string | null {
   return accessToken;
+}
+
+export function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const value = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${name}=`))
+    ?.split("=")
+    .slice(1)
+    .join("=");
+  return value ? decodeURIComponent(value) : null;
+}
+
+export function getAuthCsrfHeader(): Record<string, string> {
+  const csrfToken = getCookie(AUTH_CSRF_COOKIE_NAME);
+  return csrfToken ? { "X-CSRFToken": csrfToken } : {};
 }
 
 const api: AxiosInstance = axios.create({
@@ -65,7 +82,7 @@ api.interceptors.response.use(
         const response = await axios.post(
           `${API_URL}/auth/token/refresh/`,
           {},
-          { withCredentials: true }
+          { withCredentials: true, headers: getAuthCsrfHeader() }
         );
         const newToken = response.data.data?.access || response.data.access;
         setAccessToken(newToken);

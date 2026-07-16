@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuthStore } from "@/stores/auth.store";
 import { logout } from "@/lib/api/auth.api";
+import { getCookie } from "@/lib/api/client";
 import { getInitials } from "@/lib/utils";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 
@@ -29,10 +30,7 @@ export function Navbar() {
 
   async function handleLogout() {
     try {
-      const refresh = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("refresh="))
-        ?.split("=")[1] || "";
+      const refresh = getCookie("tcareer_refresh") || "";
       await logout(refresh);
     } catch {
       /* proceed regardless */

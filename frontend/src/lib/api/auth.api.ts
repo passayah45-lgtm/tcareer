@@ -1,4 +1,4 @@
-import api from "./client";
+import api, { getAuthCsrfHeader } from "./client";
 import type { AuthResponse, User, UserRole } from "@/types/user.types";
 import type { ApiResponse } from "@/types/api.types";
 
@@ -28,7 +28,7 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
 }
 
 export async function logout(refreshToken: string): Promise<void> {
-  await api.post("/auth/logout/", { refresh: refreshToken });
+  await api.post("/auth/logout/", { refresh: refreshToken }, { headers: getAuthCsrfHeader() });
 }
 
 export async function getMe(): Promise<User> {
@@ -45,7 +45,7 @@ export async function googleAuth(idToken: string): Promise<AuthResponse> {
 
 export async function refreshToken(): Promise<{ access: string }> {
   try {
-    const res = await api.post("/auth/token/refresh/", {});
+    const res = await api.post("/auth/token/refresh/", {}, { headers: getAuthCsrfHeader() });
     const access = res.data.data?.access || res.data.access;
     if (!access) throw new Error("No access token in response");
     return { access };
