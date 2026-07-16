@@ -40,7 +40,7 @@ def _set_auth_cookies(response, refresh_token):
         secure=settings.AUTH_COOKIE_SECURE,
         samesite=settings.AUTH_COOKIE_SAMESITE,
         domain=settings.AUTH_COOKIE_DOMAIN,
-        path="/api/v1/auth/",
+        path="/",
     )
 
 
@@ -49,7 +49,7 @@ def _clear_auth_cookies(response):
     response.delete_cookie(
         settings.AUTH_CSRF_COOKIE_NAME,
         domain=settings.AUTH_COOKIE_DOMAIN,
-        path="/api/v1/auth/",
+        path="/",
         samesite=settings.AUTH_COOKIE_SAMESITE,
     )
 

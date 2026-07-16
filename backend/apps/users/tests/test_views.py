@@ -51,7 +51,10 @@ class TestRegisterEndpoint:
         assert "access" in data["data"]
         assert "refresh" not in data["data"]
         assert response.cookies.get("tcareer_refresh") is not None
+        assert response.cookies.get("tcareer_csrf") is not None
         assert response.cookies["tcareer_refresh"]["httponly"]
+        assert response.cookies["tcareer_refresh"]["path"] == "/api/v1/auth/"
+        assert response.cookies["tcareer_csrf"]["path"] == "/"
         assert data["data"]["user"]["email"] == "newuser@example.com"
         assert data["data"]["user"]["role"] == "student"
 
@@ -221,7 +224,10 @@ class TestLoginEndpoint:
         assert "access" in data
         assert "refresh" not in data
         assert response.cookies.get("tcareer_refresh") is not None
+        assert response.cookies.get("tcareer_csrf") is not None
         assert response.cookies["tcareer_refresh"]["httponly"]
+        assert response.cookies["tcareer_refresh"]["path"] == "/api/v1/auth/"
+        assert response.cookies["tcareer_csrf"]["path"] == "/"
         assert data["user"]["email"] == user.email
         assert data["user"]["role"] == user.role
 
