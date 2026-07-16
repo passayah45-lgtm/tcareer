@@ -24,7 +24,11 @@ def test_notification_preferences_security_always_enabled(api_client):
 
     response = api_client.patch(
         reverse("notifications:preferences"),
-        {"preferences": [{"category": "security", "email_enabled": False, "in_app_enabled": False}]},
+        {
+            "preferences": [
+                {"category": "security", "email_enabled": False, "in_app_enabled": False}
+            ]
+        },
         format="json",
     )
 
@@ -38,9 +42,13 @@ def test_unsubscribe_suppresses_non_security_email(api_client):
     user = UserFactory()
     api_client.force_authenticate(user=user)
 
-    response = api_client.post(reverse("notifications:unsubscribe"), {"category": "job_alerts"}, format="json")
+    response = api_client.post(
+        reverse("notifications:unsubscribe"), {"category": "job_alerts"}, format="json"
+    )
     assert response.status_code == 200
-    assert EmailSuppression.objects.filter(user=user, category=NotificationCategory.JOB_ALERTS, is_active=True).exists()
+    assert EmailSuppression.objects.filter(
+        user=user, category=NotificationCategory.JOB_ALERTS, is_active=True
+    ).exists()
 
     notification = NotificationService.notify(
         recipient=user,
@@ -62,7 +70,10 @@ def test_security_notification_bypasses_suppression():
         notification_type=NotificationType.APPLICATION_STAGE_CHANGED,
         title="Security notice",
         body="Account activity.",
-        payload={"category": NotificationCategory.SECURITY, "template_key": "security_notification"},
+        payload={
+            "category": NotificationCategory.SECURITY,
+            "template_key": "security_notification",
+        },
     )
 
     delivery = EmailDelivery.objects.get(notification=notification)

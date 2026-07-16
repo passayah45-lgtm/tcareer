@@ -1,15 +1,17 @@
 import pytest
 from apps.courses.models import Course, CourseStatus, EnrollmentStatus
 from apps.courses.tests.factories import (
-    CourseFactory, PublishedCourseFactory, LessonFactory,
-    EnrollmentFactory, LessonProgressFactory,
+    CourseFactory,
+    PublishedCourseFactory,
+    LessonFactory,
+    EnrollmentFactory,
+    LessonProgressFactory,
 )
 from apps.users.tests.factories import InstructorFactory
 
 
 @pytest.mark.django_db
 class TestCourseModel:
-
     def test_course_slug_auto_generated(self):
         course = CourseFactory(title="Python for Beginners")
         assert course.slug == "python-for-beginners"
@@ -27,6 +29,7 @@ class TestCourseModel:
 
     def test_course_is_free_property(self):
         from decimal import Decimal
+
         free = CourseFactory(price=Decimal("0.00"))
         paid = CourseFactory(price=Decimal("19.99"))
         assert free.is_free is True
@@ -46,7 +49,6 @@ class TestCourseModel:
 
 @pytest.mark.django_db
 class TestEnrollmentModel:
-
     def test_enrollment_is_active(self):
         enrollment = EnrollmentFactory(status=EnrollmentStatus.ACTIVE)
         assert enrollment.is_active is True

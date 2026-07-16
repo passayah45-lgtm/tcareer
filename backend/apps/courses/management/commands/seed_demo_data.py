@@ -17,8 +17,13 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from apps.users.models import User, UserRole
 from apps.courses.models import (
-    Course, Lesson, Enrollment, LessonProgress,
-    CourseStatus, LessonType, EnrollmentStatus,
+    Course,
+    Lesson,
+    Enrollment,
+    LessonProgress,
+    CourseStatus,
+    LessonType,
+    EnrollmentStatus,
 )
 
 
@@ -432,12 +437,14 @@ class Command(BaseCommand):
         self.stdout.write("Creating enrollments and progress...")
         self._create_enrollments(students, courses)
 
-        self.stdout.write(self.style.SUCCESS(
-            f"\nDemo data created successfully:\n"
-            f"  Instructors: {len(instructors)}\n"
-            f"  Courses: {len(courses)}\n"
-            f"  Students: {len(students)}\n"
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"\nDemo data created successfully:\n"
+                f"  Instructors: {len(instructors)}\n"
+                f"  Courses: {len(courses)}\n"
+                f"  Students: {len(students)}\n"
+            )
+        )
 
     def _create_instructors(self):
         instructors = []
@@ -479,10 +486,7 @@ class Command(BaseCommand):
             )
 
             if created:
-                lesson_titles = LESSON_TITLES.get(
-                    course_data["title"],
-                    LESSON_TITLES["default"]
-                )
+                lesson_titles = LESSON_TITLES.get(course_data["title"], LESSON_TITLES["default"])
                 lesson_count = course_data["lesson_count"]
 
                 for i in range(lesson_count):
@@ -505,19 +509,72 @@ class Command(BaseCommand):
 
     def _create_students(self, count):
         first_names = [
-            "Alex", "Jordan", "Morgan", "Taylor", "Casey", "Riley",
-            "Drew", "Avery", "Quinn", "Sage", "River", "Phoenix",
-            "Kai", "Skylar", "Rowan", "Finley", "Blair", "Emery",
-            "Reese", "Dakota", "Peyton", "Hayden", "Cameron", "Logan",
-            "Jamie", "Jesse", "Dylan", "Robin", "Kendall", "Marley",
+            "Alex",
+            "Jordan",
+            "Morgan",
+            "Taylor",
+            "Casey",
+            "Riley",
+            "Drew",
+            "Avery",
+            "Quinn",
+            "Sage",
+            "River",
+            "Phoenix",
+            "Kai",
+            "Skylar",
+            "Rowan",
+            "Finley",
+            "Blair",
+            "Emery",
+            "Reese",
+            "Dakota",
+            "Peyton",
+            "Hayden",
+            "Cameron",
+            "Logan",
+            "Jamie",
+            "Jesse",
+            "Dylan",
+            "Robin",
+            "Kendall",
+            "Marley",
         ]
         last_names = [
-            "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia",
-            "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez",
-            "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas",
-            "Taylor", "Moore", "Jackson", "Martin", "Lee", "Thompson",
-            "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis",
-            "Robinson", "Walker", "Young", "Allen", "King", "Wright",
+            "Smith",
+            "Johnson",
+            "Williams",
+            "Brown",
+            "Jones",
+            "Garcia",
+            "Miller",
+            "Davis",
+            "Rodriguez",
+            "Martinez",
+            "Hernandez",
+            "Lopez",
+            "Gonzalez",
+            "Wilson",
+            "Anderson",
+            "Thomas",
+            "Taylor",
+            "Moore",
+            "Jackson",
+            "Martin",
+            "Lee",
+            "Thompson",
+            "White",
+            "Harris",
+            "Sanchez",
+            "Clark",
+            "Ramirez",
+            "Lewis",
+            "Robinson",
+            "Walker",
+            "Young",
+            "Allen",
+            "King",
+            "Wright",
         ]
 
         students = []
@@ -593,25 +650,140 @@ class Command(BaseCommand):
 
 QUIZ_QUESTIONS = {
     "Python Fundamentals for Absolute Beginners": [
-        {"question_text": "Which keyword is used to define a function in Python?", "options": ["func", "def", "function", "define"], "correct_index": 1, "explanation": "In Python, the 'def' keyword is used to define a function.", "position": 10},
-        {"question_text": "What is the correct way to create a list in Python?", "options": ["list = (1, 2, 3)", "list = {1, 2, 3}", "list = [1, 2, 3]", "list = <1, 2, 3>"], "correct_index": 2, "explanation": "Lists in Python are created using square brackets [].", "position": 20},
-        {"question_text": "What does the len() function return?", "options": ["The last element", "The data type", "The number of items", "The memory size"], "correct_index": 2, "explanation": "len() returns the number of items in an object like a list or string.", "position": 30},
-        {"question_text": "Which of these is NOT a valid Python data type?", "options": ["int", "str", "char", "float"], "correct_index": 2, "explanation": "Python does not have a 'char' type. Single characters are strings of length 1.", "position": 40},
-        {"question_text": "How do you open a file for reading in Python?", "options": ["open('file.txt', 'w')", "open('file.txt', 'r')", "read('file.txt')", "file.open('file.txt')"], "correct_index": 1, "explanation": "open() with 'r' mode opens a file for reading.", "position": 50},
+        {
+            "question_text": "Which keyword is used to define a function in Python?",
+            "options": ["func", "def", "function", "define"],
+            "correct_index": 1,
+            "explanation": "In Python, the 'def' keyword is used to define a function.",
+            "position": 10,
+        },
+        {
+            "question_text": "What is the correct way to create a list in Python?",
+            "options": [
+                "list = (1, 2, 3)",
+                "list = {1, 2, 3}",
+                "list = [1, 2, 3]",
+                "list = <1, 2, 3>",
+            ],
+            "correct_index": 2,
+            "explanation": "Lists in Python are created using square brackets [].",
+            "position": 20,
+        },
+        {
+            "question_text": "What does the len() function return?",
+            "options": [
+                "The last element",
+                "The data type",
+                "The number of items",
+                "The memory size",
+            ],
+            "correct_index": 2,
+            "explanation": "len() returns the number of items in an object like a list or string.",
+            "position": 30,
+        },
+        {
+            "question_text": "Which of these is NOT a valid Python data type?",
+            "options": ["int", "str", "char", "float"],
+            "correct_index": 2,
+            "explanation": "Python does not have a 'char' type. Single characters are strings of length 1.",
+            "position": 40,
+        },
+        {
+            "question_text": "How do you open a file for reading in Python?",
+            "options": [
+                "open('file.txt', 'w')",
+                "open('file.txt', 'r')",
+                "read('file.txt')",
+                "file.open('file.txt')",
+            ],
+            "correct_index": 1,
+            "explanation": "open() with 'r' mode opens a file for reading.",
+            "position": 50,
+        },
     ],
     "JavaScript Essentials": [
-        {"question_text": "Which keyword declares a variable that cannot be reassigned?", "options": ["var", "let", "const", "static"], "correct_index": 2, "explanation": "'const' declares a variable that cannot be reassigned.", "position": 10},
-        {"question_text": "What does DOM stand for?", "options": ["Data Object Model", "Document Object Model", "Dynamic Output Module", "Display Object Manager"], "correct_index": 1, "explanation": "DOM stands for Document Object Model.", "position": 20},
-        {"question_text": "Which method adds an element to the end of an array?", "options": ["append()", "push()", "add()", "insert()"], "correct_index": 1, "explanation": "The push() method adds elements to the end of an array.", "position": 30},
-        {"question_text": "What is the output of: typeof 42?", "options": ["'int'", "'number'", "'integer'", "'numeric'"], "correct_index": 1, "explanation": "typeof returns 'number' for both integers and floats in JavaScript.", "position": 40},
-        {"question_text": "Which syntax creates an arrow function?", "options": ["function() => {}", "() => {}", "=> () {}", "func() {}"], "correct_index": 1, "explanation": "Arrow functions use the () => {} syntax.", "position": 50},
+        {
+            "question_text": "Which keyword declares a variable that cannot be reassigned?",
+            "options": ["var", "let", "const", "static"],
+            "correct_index": 2,
+            "explanation": "'const' declares a variable that cannot be reassigned.",
+            "position": 10,
+        },
+        {
+            "question_text": "What does DOM stand for?",
+            "options": [
+                "Data Object Model",
+                "Document Object Model",
+                "Dynamic Output Module",
+                "Display Object Manager",
+            ],
+            "correct_index": 1,
+            "explanation": "DOM stands for Document Object Model.",
+            "position": 20,
+        },
+        {
+            "question_text": "Which method adds an element to the end of an array?",
+            "options": ["append()", "push()", "add()", "insert()"],
+            "correct_index": 1,
+            "explanation": "The push() method adds elements to the end of an array.",
+            "position": 30,
+        },
+        {
+            "question_text": "What is the output of: typeof 42?",
+            "options": ["'int'", "'number'", "'integer'", "'numeric'"],
+            "correct_index": 1,
+            "explanation": "typeof returns 'number' for both integers and floats in JavaScript.",
+            "position": 40,
+        },
+        {
+            "question_text": "Which syntax creates an arrow function?",
+            "options": ["function() => {}", "() => {}", "=> () {}", "func() {}"],
+            "correct_index": 1,
+            "explanation": "Arrow functions use the () => {} syntax.",
+            "position": 50,
+        },
     ],
     "SQL for Beginners": [
-        {"question_text": "Which SQL clause filters rows in a query?", "options": ["ORDER BY", "GROUP BY", "WHERE", "HAVING"], "correct_index": 2, "explanation": "WHERE filters individual rows. HAVING filters groups.", "position": 10},
-        {"question_text": "What does SELECT * FROM users return?", "options": ["The first row", "All columns from users", "Only the id column", "The row count"], "correct_index": 1, "explanation": "SELECT * retrieves all columns from the specified table.", "position": 20},
-        {"question_text": "Which JOIN returns only rows with matches in both tables?", "options": ["LEFT JOIN", "RIGHT JOIN", "FULL JOIN", "INNER JOIN"], "correct_index": 3, "explanation": "INNER JOIN returns only rows where there is a match in both tables.", "position": 30},
-        {"question_text": "Which aggregate function counts the number of rows?", "options": ["SUM()", "COUNT()", "TOTAL()", "NUM()"], "correct_index": 1, "explanation": "COUNT() returns the number of rows matching the query.", "position": 40},
-        {"question_text": "What does ORDER BY name DESC do?", "options": ["Sorts ascending", "Sorts descending", "Deletes by name", "Groups by name"], "correct_index": 1, "explanation": "DESC means descending order. ASC is the default (ascending).", "position": 50},
+        {
+            "question_text": "Which SQL clause filters rows in a query?",
+            "options": ["ORDER BY", "GROUP BY", "WHERE", "HAVING"],
+            "correct_index": 2,
+            "explanation": "WHERE filters individual rows. HAVING filters groups.",
+            "position": 10,
+        },
+        {
+            "question_text": "What does SELECT * FROM users return?",
+            "options": [
+                "The first row",
+                "All columns from users",
+                "Only the id column",
+                "The row count",
+            ],
+            "correct_index": 1,
+            "explanation": "SELECT * retrieves all columns from the specified table.",
+            "position": 20,
+        },
+        {
+            "question_text": "Which JOIN returns only rows with matches in both tables?",
+            "options": ["LEFT JOIN", "RIGHT JOIN", "FULL JOIN", "INNER JOIN"],
+            "correct_index": 3,
+            "explanation": "INNER JOIN returns only rows where there is a match in both tables.",
+            "position": 30,
+        },
+        {
+            "question_text": "Which aggregate function counts the number of rows?",
+            "options": ["SUM()", "COUNT()", "TOTAL()", "NUM()"],
+            "correct_index": 1,
+            "explanation": "COUNT() returns the number of rows matching the query.",
+            "position": 40,
+        },
+        {
+            "question_text": "What does ORDER BY name DESC do?",
+            "options": ["Sorts ascending", "Sorts descending", "Deletes by name", "Groups by name"],
+            "correct_index": 1,
+            "explanation": "DESC means descending order. ASC is the default (ascending).",
+            "position": 50,
+        },
     ],
 }
 
@@ -619,6 +791,7 @@ QUIZ_QUESTIONS = {
 def seed_quiz_questions():
     from apps.courses.models import Course
     from apps.assessments.models import QuizQuestion
+
     for course_title, questions in QUIZ_QUESTIONS.items():
         try:
             course = Course.objects.get(title=course_title)

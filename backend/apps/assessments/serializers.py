@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import CourseRating, QuizAttempt, QuizQuestion
+from .models import CourseRating, QuestionReviewDecision, QuizAttempt, QuizQuestion
 
 
 class QuizQuestionSerializer(serializers.ModelSerializer):
@@ -30,6 +30,9 @@ class QuizQuestionAdminSerializer(serializers.ModelSerializer):
             "explanation",
             "position",
             "question_type",
+            "category",
+            "reusable_key",
+            "learning_objective",
             "lesson_mapping",
             "difficulty",
             "review_status",
@@ -39,6 +42,49 @@ class QuizQuestionAdminSerializer(serializers.ModelSerializer):
             "is_certificate_eligible",
         ]
         read_only_fields = ["id", "reviewed_by", "reviewed_at"]
+
+
+class QuestionReviewDecisionSerializer(serializers.ModelSerializer):
+    reviewer_email = serializers.EmailField(source="reviewer.email", read_only=True)
+
+    class Meta:
+        model = QuestionReviewDecision
+        fields = [
+            "id",
+            "question",
+            "reviewer_email",
+            "assignment_id",
+            "decision",
+            "section_comments",
+            "required_changes",
+            "certificate_eligible",
+            "marked_reusable",
+            "notes",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class StructuredQuestionReviewActionSerializer(serializers.Serializer):
+    decision = serializers.ChoiceField(
+        choices=[
+            "approve",
+            "approve_minor_edits",
+            "request_changes",
+            "reject",
+            "escalate",
+        ]
+    )
+    section_comments = serializers.DictField(required=False, default=dict)
+    required_changes = serializers.ListField(
+        child=serializers.CharField(max_length=500),
+        required=False,
+        default=list,
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    certificate_eligible = serializers.BooleanField(default=False)
+    marked_reusable = serializers.BooleanField(default=False)
+    assignment_id = serializers.UUIDField(required=False, allow_null=True)
 
 
 class QuizQuestionCreateSerializer(serializers.ModelSerializer):
@@ -51,6 +97,9 @@ class QuizQuestionCreateSerializer(serializers.ModelSerializer):
             "explanation",
             "position",
             "question_type",
+            "category",
+            "reusable_key",
+            "learning_objective",
             "lesson_mapping",
             "difficulty",
             "review_status",
@@ -89,9 +138,7 @@ class QuizSubmitSerializer(serializers.Serializer):
             try:
                 uuid.UUID(str(key))
             except ValueError as exc:
-                raise serializers.ValidationError(
-                    f"Invalid question ID format: {key}"
-                ) from exc
+                raise serializers.ValidationError(f"Invalid question ID format: {key}") from exc
         return value
 
 
@@ -171,6 +218,9 @@ class QuizQuestionBulkItemSerializer(serializers.Serializer):
     explanation = serializers.CharField(max_length=2000, allow_blank=True, default="")
     position = serializers.IntegerField(min_value=0, default=0)
     question_type = serializers.CharField(max_length=40, default="multiple_choice")
+    category = serializers.CharField(max_length=120, allow_blank=True, default="")
+    reusable_key = serializers.SlugField(max_length=160, allow_blank=True, default="")
+    learning_objective = serializers.CharField(max_length=500, allow_blank=True, default="")
     lesson_mapping = serializers.CharField(max_length=255, allow_blank=True, default="")
     difficulty = serializers.CharField(max_length=30, allow_blank=True, default="beginner")
     review_status = serializers.CharField(max_length=30, default="review_required")

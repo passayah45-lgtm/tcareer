@@ -1,7 +1,22 @@
 import api from "./client";
 import type { ApiResponse } from "@/types/api.types";
 
-export interface QuizQuestion { id: string; question_text: string; options: string[]; correct_index?: number; explanation?: string; position: number; }
+export interface QuizQuestion {
+  id: string;
+  question_text: string;
+  options: string[];
+  correct_index?: number;
+  explanation?: string;
+  position: number;
+  question_type?: string;
+  category?: string;
+  reusable_key?: string;
+  learning_objective?: string;
+  lesson_mapping?: string;
+  difficulty?: string;
+  review_status?: string;
+  is_certificate_eligible?: boolean;
+}
 export interface QuizResult { id: string; score: number; total_questions: number; percentage: number; passed: boolean; attempt_number: number; pass_threshold: number; question_results: { question_id: string; question_text: string; options: string[]; selected_index: number | null; correct_index: number; is_correct: boolean; explanation: string; }[]; created_at: string; }
 export interface QuizMeta { questions: QuizQuestion[]; total: number; pass_threshold: number; }
 export interface CanAttempt { can_attempt: boolean; reason: string; }
@@ -55,5 +70,25 @@ export async function deleteQuestion(courseId: string, questionId: string): Prom
 
 export async function updateQuestion(courseId: string, questionId: string, payload: Partial<BulkQuestionItem>): Promise<QuizQuestion> {
   const res = await api.patch<ApiResponse<QuizQuestion>>(`/assessments/${courseId}/questions/${questionId}/`, payload);
+  return res.data.data;
+}
+
+export async function structuredQuestionReview(
+  courseId: string,
+  questionId: string,
+  payload: {
+    decision: string;
+    section_comments?: Record<string, string>;
+    required_changes?: string[];
+    notes?: string;
+    certificate_eligible?: boolean;
+    marked_reusable?: boolean;
+    assignment_id?: string;
+  }
+): Promise<{ question: QuizQuestion; decision: Record<string, unknown> }> {
+  const res = await api.post<ApiResponse<{ question: QuizQuestion; decision: Record<string, unknown> }>>(
+    `/assessments/${courseId}/questions/${questionId}/structured-review/`,
+    payload
+  );
   return res.data.data;
 }

@@ -3,6 +3,7 @@ from .base import *  # noqa: F401, F403
 DEBUG = False
 DEPLOY_ENVIRONMENT = "test"
 SENTRY_ENVIRONMENT = "test"
+ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1", "admin.tcareer.test"]
 
 DATABASES = {
     "default": {
@@ -17,8 +18,9 @@ DATABASES = {
 }
 
 # Use DATABASE_URL if provided (CI environment)
-import dj_database_url  # noqa: E402
 import os  # noqa: E402
+
+import dj_database_url  # noqa: E402
 
 if os.environ.get("DATABASE_URL"):
     DATABASES["default"] = dj_database_url.config(default=os.environ["DATABASE_URL"])

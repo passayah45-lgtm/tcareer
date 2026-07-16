@@ -6,12 +6,24 @@ from apps.users.serializers import UserSerializer
 from common.uploads import UploadValidationService
 
 from .models import (
+    AcademicReviewerProfile,
+    ContentReviewStatus,
     Course,
+    CourseProject,
+    CourseProjectReviewDecision,
+    CourseReview,
     CourseStatus,
     Enrollment,
     Lesson,
     LessonProgress,
+    LessonStructuredReview,
     LessonType,
+    LessonVersion,
+    ResourceLibraryItem,
+    ReviewAssignment,
+    ReviewDecision,
+    ReviewPriority,
+    ReviewTargetType,
     VideoLesson,
 )
 
@@ -350,3 +362,376 @@ class QuizQuestionBulkCreateSerializer(serializers.Serializer):
                 "Cannot create more than 50 questions in a single request."
             )
         return value
+
+
+class CourseReviewSerializer(serializers.ModelSerializer):
+    reviewer_email = serializers.EmailField(source="reviewer.email", read_only=True)
+    submitted_by_email = serializers.EmailField(source="submitted_by.email", read_only=True)
+
+    class Meta:
+        model = CourseReview
+        fields = [
+            "id",
+            "course",
+            "status",
+            "reviewer_email",
+            "submitted_by_email",
+            "comments",
+            "required_fixes",
+            "reviewed_at",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class ReviewActionSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=ContentReviewStatus.choices)
+    comments = serializers.CharField(required=False, allow_blank=True, default="")
+    required_fixes = serializers.ListField(
+        child=serializers.CharField(max_length=500),
+        required=False,
+        default=list,
+    )
+
+
+class SubmitCourseReviewSerializer(serializers.Serializer):
+    comments = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class LessonReviewActionSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=ContentReviewStatus.choices)
+    comments = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class LessonVersionSerializer(serializers.ModelSerializer):
+    editor_email = serializers.EmailField(source="editor.email", read_only=True)
+
+    class Meta:
+        model = LessonVersion
+        fields = [
+            "id",
+            "lesson",
+            "version_number",
+            "editor_email",
+            "title",
+            "lesson_type",
+            "content",
+            "summary_of_changes",
+            "is_published_version",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class LessonVersionCreateSerializer(serializers.Serializer):
+    summary_of_changes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class LessonVersionCompareSerializer(serializers.Serializer):
+    left_version_id = serializers.UUIDField()
+    right_version_id = serializers.UUIDField()
+
+
+class CourseProjectSerializer(serializers.ModelSerializer):
+    reviewed_by_email = serializers.EmailField(source="reviewed_by.email", read_only=True)
+
+    class Meta:
+        model = CourseProject
+        fields = [
+            "id",
+            "course",
+            "instructions",
+            "required_deliverables",
+            "rubric",
+            "evaluation_criteria",
+            "passing_score",
+            "reviewer_notes",
+            "example_solution",
+            "resources",
+            "version",
+            "approval_state",
+            "reviewed_by_email",
+            "reviewed_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "course",
+            "version",
+            "approval_state",
+            "reviewed_by_email",
+            "reviewed_at",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class CourseProjectReviewSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=ContentReviewStatus.choices)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class ResourceLibraryItemSerializer(serializers.ModelSerializer):
+    owner_email = serializers.EmailField(source="owner.email", read_only=True)
+    course_title = serializers.CharField(source="course.title", read_only=True)
+    course_id = serializers.UUIDField(required=False, allow_null=True, write_only=True)
+
+    class Meta:
+        model = ResourceLibraryItem
+        fields = [
+            "id",
+            "owner_email",
+            "course",
+            "course_id",
+            "course_title",
+            "title",
+            "resource_type",
+            "file_url",
+            "storage_key",
+            "file_name",
+            "content_type",
+            "file_size_bytes",
+            "checksum",
+            "description",
+            "version",
+            "visibility",
+            "review_status",
+            "review_notes",
+            "download_count",
+            "malware_scan_status",
+            "malware_scanner",
+            "malware_scanned_at",
+            "malware_scan_result",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "owner_email",
+            "course",
+            "course_title",
+            "storage_key",
+            "review_status",
+            "review_notes",
+            "download_count",
+            "malware_scan_status",
+            "malware_scanner",
+            "malware_scanned_at",
+            "malware_scan_result",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate(self, attrs):
+        course_id = attrs.pop("course_id", None)
+        if course_id:
+            try:
+                attrs["course"] = Course.objects.get(id=course_id, deleted_at=None)
+            except Course.DoesNotExist as exc:
+                raise serializers.ValidationError({"course_id": "Course not found."}) from exc
+        return attrs
+
+
+class AcademicReviewerProfileSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source="user.email", read_only=True)
+    user_id = serializers.UUIDField(source="user.id", read_only=True)
+
+    class Meta:
+        model = AcademicReviewerProfile
+        fields = [
+            "id",
+            "user_id",
+            "email",
+            "reviewer_role",
+            "organization",
+            "subject_tags",
+            "is_active",
+            "max_active_assignments",
+            "automatic_assignment_enabled",
+            "created_at",
+        ]
+        read_only_fields = ["id", "email", "user_id", "created_at"]
+
+
+class ReviewAssignmentSerializer(serializers.ModelSerializer):
+    reviewer_email = serializers.EmailField(source="assigned_reviewer.email", read_only=True)
+    assigned_by_email = serializers.EmailField(source="assigned_by.email", read_only=True)
+    course_title = serializers.CharField(source="course.title", read_only=True)
+    lesson_title = serializers.CharField(source="lesson.title", read_only=True)
+    is_overdue = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = ReviewAssignment
+        fields = [
+            "id",
+            "target_type",
+            "target_id",
+            "course",
+            "course_title",
+            "lesson",
+            "lesson_title",
+            "assigned_reviewer",
+            "reviewer_email",
+            "assigned_by_email",
+            "organization",
+            "subject",
+            "priority",
+            "review_status",
+            "due_date",
+            "reassignment_history",
+            "escalation_level",
+            "escalated_to",
+            "escalation_reason",
+            "escalated_at",
+            "completed_at",
+            "is_overdue",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "course",
+            "lesson",
+            "reviewer_email",
+            "assigned_by_email",
+            "course_title",
+            "lesson_title",
+            "reassignment_history",
+            "escalation_level",
+            "escalated_to",
+            "escalation_reason",
+            "escalated_at",
+            "completed_at",
+            "is_overdue",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class ReviewAssignmentCreateSerializer(serializers.Serializer):
+    target_type = serializers.ChoiceField(choices=ReviewTargetType.choices)
+    target_id = serializers.UUIDField()
+    reviewer_id = serializers.UUIDField()
+    due_date = serializers.DateTimeField(required=False, allow_null=True)
+    priority = serializers.ChoiceField(
+        choices=ReviewPriority.choices, default=ReviewPriority.NORMAL
+    )
+    subject = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class ReviewReassignSerializer(serializers.Serializer):
+    reviewer_id = serializers.UUIDField()
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class InstructorReviewResponseSerializer(serializers.Serializer):
+    response = serializers.CharField(max_length=4000)
+    addressed = serializers.BooleanField(default=False)
+
+
+class LessonStructuredReviewSerializer(serializers.ModelSerializer):
+    reviewer_email = serializers.EmailField(source="reviewer.email", read_only=True)
+
+    class Meta:
+        model = LessonStructuredReview
+        fields = [
+            "id",
+            "lesson",
+            "assignment",
+            "reviewer_email",
+            "decision",
+            "section_comments",
+            "required_changes",
+            "instructor_response",
+            "addressed_at",
+            "completed_at",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class StructuredLessonReviewActionSerializer(serializers.Serializer):
+    decision = serializers.ChoiceField(choices=ReviewDecision.choices)
+    section_comments = serializers.DictField(required=False, default=dict)
+    required_changes = serializers.ListField(
+        child=serializers.CharField(max_length=500),
+        required=False,
+        default=list,
+    )
+
+
+class CourseProjectReviewDecisionSerializer(serializers.ModelSerializer):
+    reviewer_email = serializers.EmailField(source="reviewer.email", read_only=True)
+
+    class Meta:
+        model = CourseProjectReviewDecision
+        fields = [
+            "id",
+            "project",
+            "assignment",
+            "reviewer_email",
+            "decision",
+            "project_version",
+            "review_sections",
+            "required_changes",
+            "notes",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class StructuredProjectReviewActionSerializer(serializers.Serializer):
+    decision = serializers.ChoiceField(choices=ReviewDecision.choices)
+    review_sections = serializers.DictField(required=False, default=dict)
+    required_changes = serializers.ListField(
+        child=serializers.CharField(max_length=500),
+        required=False,
+        default=list,
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class ResourceUploadRequestSerializer(serializers.Serializer):
+    course_id = serializers.UUIDField(required=False, allow_null=True)
+    file_name = serializers.CharField(max_length=255)
+    content_type = serializers.CharField(max_length=120)
+    file_size = serializers.IntegerField(min_value=1)
+    checksum = serializers.CharField(max_length=128, required=False, allow_blank=True, default="")
+    visibility = serializers.ChoiceField(
+        choices=["private", "course", "public"],
+        default="private",
+    )
+
+
+class ResourceReviewActionSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=ContentReviewStatus.choices)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class ResourceScanActionSerializer(serializers.Serializer):
+    provider = serializers.ChoiceField(
+        choices=["disabled", "mock", "clamav", "external"],
+        required=False,
+    )
+    sample_text = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class PublishBlockerSerializer(serializers.Serializer):
+    blockers = serializers.ListField()
+    publish_ready = serializers.BooleanField()
+
+
+class QualityDashboardSerializer(serializers.Serializer):
+    summary = serializers.DictField()
+    courses = serializers.ListField()
+
+
+class InstructorAnalyticsSerializer(serializers.Serializer):
+    courses_authored = serializers.IntegerField()
+    lessons_created = serializers.IntegerField()
+    lessons_approved = serializers.IntegerField()
+    reviews_completed = serializers.IntegerField()
+    courses_published = serializers.IntegerField()
+    resources_created = serializers.IntegerField()

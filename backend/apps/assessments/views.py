@@ -14,11 +14,13 @@ from .models import CourseRating, QuestionReviewStatus, QuizQuestion
 from .serializers import (
     CourseRatingSerializer,
     CreateRatingSerializer,
+    QuestionReviewDecisionSerializer,
     QuizAttemptSerializer,
     QuizQuestionAdminSerializer,
     QuizQuestionCreateSerializer,
     QuizQuestionSerializer,
     QuizSubmitSerializer,
+    StructuredQuestionReviewActionSerializer,
 )
 from .services import QuestionReviewService, QuizService, RatingService
 
@@ -178,6 +180,34 @@ def approve_question(request, course_id, question_id):
         certificate_eligible=bool(request.data.get("is_certificate_eligible", True)),
     )
     return Response(QuizQuestionAdminSerializer(question).data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def structured_question_review(request, course_id, question_id):
+    course = get_object_or_404(Course, id=course_id, deleted_at=None)
+    question = get_object_or_404(QuizQuestion, id=question_id, course=course)
+    serializer = StructuredQuestionReviewActionSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    question = QuestionReviewService.structured_review(
+        question,
+        request.user,
+        decision=serializer.validated_data["decision"],
+        section_comments=serializer.validated_data.get("section_comments", {}),
+        required_changes=serializer.validated_data.get("required_changes", []),
+        notes=serializer.validated_data.get("notes", ""),
+        certificate_eligible=serializer.validated_data.get("certificate_eligible", False),
+        marked_reusable=serializer.validated_data.get("marked_reusable", False),
+        assignment_id=serializer.validated_data.get("assignment_id"),
+    )
+    decision = question.review_decisions.order_by("-created_at").first()
+    return Response(
+        {
+            "question": QuizQuestionAdminSerializer(question).data,
+            "decision": QuestionReviewDecisionSerializer(decision).data,
+        },
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @api_view(["POST"])

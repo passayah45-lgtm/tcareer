@@ -51,6 +51,20 @@ export default function InstructorDashboardPage() {
               <h2 className="font-semibold text-amber-900 mb-1 text-sm">Earnings coming soon</h2>
               <p className="text-xs text-amber-800 leading-relaxed">Instructor revenue sharing is in development. When it launches you will earn a percentage of every subscription from students enrolled in your courses.</p>
             </div>
+            <Link
+              href="/instructor/content-quality"
+              className="block border border-border rounded-xl p-5 bg-card hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-semibold">Content quality review</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Check course readiness, lesson approval, assessments, resources, and publishing blockers.
+                  </p>
+                </div>
+                <span className="text-sm font-medium text-primary">Open</span>
+              </div>
+            </Link>
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold">Your courses</h2>

@@ -207,11 +207,7 @@ def test_public_track_hides_draft_courses_and_returns_published_courses(data_ana
         TRACK_ATTACHMENTS["data-analyst"]
     )
     stages = published_response.json()["data"]["courses_by_stage"]
-    returned_titles = [
-        course["course_title"]
-        for stage in stages
-        for course in stage["courses"]
-    ]
+    returned_titles = [course["course_title"] for stage in stages for course in stage["courses"]]
     assert returned_titles[0] == "Excel for Data Analysis"
     assert "Interview Preparation for Data Analysts" in returned_titles
 

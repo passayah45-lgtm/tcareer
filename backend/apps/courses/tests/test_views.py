@@ -5,7 +5,9 @@ from rest_framework.test import APIClient
 
 from apps.courses.models import CourseStatus, Enrollment
 from apps.courses.tests.factories import (
-    CourseFactory, PublishedCourseFactory, FreeCourseFactory,
+    CourseFactory,
+    PublishedCourseFactory,
+    FreeCourseFactory,
     LessonFactory,
 )
 from apps.users.tests.factories import UserFactory, InstructorFactory
@@ -48,7 +50,6 @@ def get_count(response):
 
 @pytest.mark.django_db
 class TestCourseListEndpoint:
-
     def test_returns_published_courses_only(self, client):
         PublishedCourseFactory()
         PublishedCourseFactory()
@@ -76,7 +77,6 @@ class TestCourseListEndpoint:
 
 @pytest.mark.django_db
 class TestCourseDetailEndpoint:
-
     def test_get_published_course(self, client):
         course = PublishedCourseFactory()
         response = client.get(reverse("courses:course-detail", kwargs={"slug": course.slug}))
@@ -91,7 +91,6 @@ class TestCourseDetailEndpoint:
 
 @pytest.mark.django_db
 class TestCourseCreateEndpoint:
-
     def test_instructor_can_create_course(self, instructor_client):
         response = instructor_client.post(
             reverse("courses:course-create"),
@@ -126,23 +125,16 @@ class TestCourseCreateEndpoint:
 
 @pytest.mark.django_db
 class TestEnrollmentEndpoint:
-
     def test_enroll_in_free_course(self, student_client):
         course = FreeCourseFactory()
-        response = student_client.post(
-            reverse("courses:enroll", kwargs={"course_id": course.id})
-        )
+        response = student_client.post(reverse("courses:enroll", kwargs={"course_id": course.id}))
         assert response.status_code == status.HTTP_201_CREATED
-        assert Enrollment.objects.filter(
-            user=student_client.user, course=course
-        ).exists()
+        assert Enrollment.objects.filter(user=student_client.user, course=course).exists()
 
     def test_cannot_enroll_twice(self, student_client):
         course = FreeCourseFactory()
         student_client.post(reverse("courses:enroll", kwargs={"course_id": course.id}))
-        response = student_client.post(
-            reverse("courses:enroll", kwargs={"course_id": course.id})
-        )
+        response = student_client.post(reverse("courses:enroll", kwargs={"course_id": course.id}))
         assert response.status_code == status.HTTP_409_CONFLICT
 
     def test_my_enrollments_returns_list(self, student_client):
@@ -162,17 +154,20 @@ class TestEnrollmentEndpoint:
 
 @pytest.mark.django_db
 class TestProgressEndpoint:
-
     def test_update_progress(self, student_client):
         from apps.courses.services import EnrollmentService
+
         course = FreeCourseFactory()
         lesson = LessonFactory(course=course, is_published=True)
         EnrollmentService.enroll(student_client.user, course)
         response = student_client.post(
-            reverse("courses:update-progress", kwargs={
-                "course_id": course.id,
-                "lesson_id": lesson.id,
-            }),
+            reverse(
+                "courses:update-progress",
+                kwargs={
+                    "course_id": course.id,
+                    "lesson_id": lesson.id,
+                },
+            ),
             {"watch_percentage": 55, "last_position_seconds": 330},
             format="json",
         )
@@ -183,10 +178,13 @@ class TestProgressEndpoint:
         course = FreeCourseFactory()
         lesson = LessonFactory(course=course, is_published=True)
         response = student_client.post(
-            reverse("courses:update-progress", kwargs={
-                "course_id": course.id,
-                "lesson_id": lesson.id,
-            }),
+            reverse(
+                "courses:update-progress",
+                kwargs={
+                    "course_id": course.id,
+                    "lesson_id": lesson.id,
+                },
+            ),
             {"watch_percentage": 50},
             format="json",
         )

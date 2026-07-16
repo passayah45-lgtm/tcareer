@@ -25,8 +25,16 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = [
-            "id", "notification_type", "title", "body",
-            "action_url", "payload", "category", "is_read", "read_at", "created_at",
+            "id",
+            "notification_type",
+            "title",
+            "body",
+            "action_url",
+            "payload",
+            "category",
+            "is_read",
+            "read_at",
+            "created_at",
         ]
         read_only_fields = fields
 
@@ -64,7 +72,9 @@ def _ensure_preferences(user):
     preferences = []
     for category, _ in NotificationCategory.choices:
         pref, _ = NotificationPreference.objects.get_or_create(user=user, category=category)
-        if category == NotificationCategory.SECURITY and (not pref.email_enabled or not pref.in_app_enabled):
+        if category == NotificationCategory.SECURITY and (
+            not pref.email_enabled or not pref.in_app_enabled
+        ):
             pref.in_app_enabled = True
             pref.email_enabled = True
             pref.save(update_fields=["in_app_enabled", "email_enabled", "updated_at"])
@@ -81,18 +91,16 @@ def list_notifications(request):
     Returns the 20 most recent notifications for the authenticated user.
     Includes unread count.
     """
-    notifications = Notification.objects.filter(
-        recipient=request.user
-    ).order_by("-created_at")[:20]
+    notifications = Notification.objects.filter(recipient=request.user).order_by("-created_at")[:20]
 
-    unread_count = Notification.objects.filter(
-        recipient=request.user, is_read=False
-    ).count()
+    unread_count = Notification.objects.filter(recipient=request.user, is_read=False).count()
 
-    return Response({
-        "unread_count": unread_count,
-        "notifications": NotificationSerializer(notifications, many=True).data,
-    })
+    return Response(
+        {
+            "unread_count": unread_count,
+            "notifications": NotificationSerializer(notifications, many=True).data,
+        }
+    )
 
 
 @api_view(["GET", "PATCH"])
@@ -105,10 +113,12 @@ def notification_preferences(request):
             email__iexact=request.user.email,
             is_active=True,
         ).values_list("category", flat=True)
-        return Response({
-            "preferences": NotificationPreferenceSerializer(preferences, many=True).data,
-            "suppressed_categories": list(suppressed),
-        })
+        return Response(
+            {
+                "preferences": NotificationPreferenceSerializer(preferences, many=True).data,
+                "suppressed_categories": list(suppressed),
+            }
+        )
 
     updates = request.data.get("preferences", request.data)
     if isinstance(updates, dict):
@@ -130,16 +140,30 @@ def notification_preferences(request):
             action="notification_preference_changed",
             target=pref,
             request=request,
-            metadata={"category": category, "email_enabled": pref.email_enabled, "in_app_enabled": pref.in_app_enabled},
+            metadata={
+                "category": category,
+                "email_enabled": pref.email_enabled,
+                "in_app_enabled": pref.in_app_enabled,
+            },
         )
         updated.append(pref)
-    return Response({"preferences": NotificationPreferenceSerializer(_ensure_preferences(request.user), many=True).data})
+    return Response(
+        {
+            "preferences": NotificationPreferenceSerializer(
+                _ensure_preferences(request.user), many=True
+            ).data
+        }
+    )
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def delivery_history(request):
-    deliveries = EmailDelivery.objects.filter(recipient=request.user).select_related("notification").order_by("-created_at")[:100]
+    deliveries = (
+        EmailDelivery.objects.filter(recipient=request.user)
+        .select_related("notification")
+        .order_by("-created_at")[:100]
+    )
     return Response({"deliveries": EmailDeliveryHistorySerializer(deliveries, many=True).data})
 
 
@@ -158,7 +182,11 @@ def _hmac_sha256(secret: str, payload: bytes) -> str:
 def _verify_ses(request) -> bool:
     secret = getattr(settings, "SES_WEBHOOK_SECRET", "")
     signature = request.headers.get("X-TCareer-SES-Signature", "")
-    return bool(secret and signature and constant_time_compare(signature, _hmac_sha256(secret, request.body)))
+    return bool(
+        secret
+        and signature
+        and constant_time_compare(signature, _hmac_sha256(secret, request.body))
+    )
 
 
 def _verify_sendgrid(request) -> bool:
@@ -166,18 +194,33 @@ def _verify_sendgrid(request) -> bool:
     timestamp = request.headers.get("X-Twilio-Email-Event-Webhook-Timestamp", "")
     signature = request.headers.get("X-Twilio-Email-Event-Webhook-Signature", "")
     signed_payload = f"{timestamp}.".encode("utf-8") + request.body
-    return bool(secret and timestamp and signature and constant_time_compare(signature, _hmac_sha256(secret, signed_payload)))
+    return bool(
+        secret
+        and timestamp
+        and signature
+        and constant_time_compare(signature, _hmac_sha256(secret, signed_payload))
+    )
 
 
 def _verify_mailgun(request) -> bool:
     signing_key = getattr(settings, "MAILGUN_WEBHOOK_SIGNING_KEY", "")
-    timestamp = request.data.get("timestamp") or request.data.get("signature", {}).get("timestamp", "")
+    timestamp = request.data.get("timestamp") or request.data.get("signature", {}).get(
+        "timestamp", ""
+    )
     token = request.data.get("token") or request.data.get("signature", {}).get("token", "")
     signature = request.data.get("signature")
     if isinstance(signature, dict):
         signature = signature.get("signature", "")
-    expected = hmac.new(signing_key.encode("utf-8"), f"{timestamp}{token}".encode("utf-8"), hashlib.sha256).hexdigest()
-    return bool(signing_key and timestamp and token and signature and constant_time_compare(signature, expected))
+    expected = hmac.new(
+        signing_key.encode("utf-8"), f"{timestamp}{token}".encode("utf-8"), hashlib.sha256
+    ).hexdigest()
+    return bool(
+        signing_key
+        and timestamp
+        and token
+        and signature
+        and constant_time_compare(signature, expected)
+    )
 
 
 def _verify_email_webhook(request) -> tuple[bool, str]:
@@ -193,8 +236,14 @@ def _verify_email_webhook(request) -> tuple[bool, str]:
     if not getattr(settings, "EMAIL_WEBHOOK_ALLOW_SHARED_SECRET", False):
         return False, provider or "shared_secret"
     configured_secret = getattr(settings, "EMAIL_WEBHOOK_SECRET", "")
-    provided_secret = request.headers.get("X-TCareer-Email-Webhook-Secret", "") or request.headers.get("X-Webhook-Secret", "")
-    return bool(configured_secret and provided_secret and constant_time_compare(configured_secret, provided_secret)), provider or "shared_secret"
+    provided_secret = request.headers.get(
+        "X-TCareer-Email-Webhook-Secret", ""
+    ) or request.headers.get("X-Webhook-Secret", "")
+    return bool(
+        configured_secret
+        and provided_secret
+        and constant_time_compare(configured_secret, provided_secret)
+    ), provider or "shared_secret"
 
 
 @api_view(["POST"])
@@ -219,7 +268,9 @@ def email_provider_webhook(request):
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     if delivery is None:
         return Response({"detail": "Delivery not found."}, status=status.HTTP_404_NOT_FOUND)
-    return Response({"detail": "Event processed.", "processed": processed, "delivery_id": str(delivery.id)})
+    return Response(
+        {"detail": "Event processed.", "processed": processed, "delivery_id": str(delivery.id)}
+    )
 
 
 @api_view(["POST"])
@@ -261,7 +312,9 @@ def resubscribe(request):
     category = request.data.get("category", "")
     if category and category not in NotificationCategory.values:
         return Response({"detail": "Invalid category."}, status=400)
-    suppressions = EmailSuppression.objects.filter(user=request.user, email__iexact=request.user.email, is_active=True)
+    suppressions = EmailSuppression.objects.filter(
+        user=request.user, email__iexact=request.user.email, is_active=True
+    )
     if category:
         suppressions = suppressions.filter(category=category)
         pref, _ = NotificationPreference.objects.get_or_create(user=request.user, category=category)
@@ -293,7 +346,9 @@ def unsubscribe_token(request, token):
         return Response({"detail": "This unsubscribe link is invalid or expired."}, status=400)
     if token_obj.category == NotificationCategory.SECURITY:
         return Response({"detail": "Security notifications cannot be disabled."}, status=400)
-    pref, _ = NotificationPreference.objects.get_or_create(user=token_obj.user, category=token_obj.category)
+    pref, _ = NotificationPreference.objects.get_or_create(
+        user=token_obj.user, category=token_obj.category
+    )
     pref.email_enabled = False
     pref.save(update_fields=["email_enabled", "updated_at"])
     EmailSuppression.objects.update_or_create(
@@ -322,9 +377,7 @@ def mark_read(request, notification_id):
     Mark a single notification as read.
     """
     try:
-        notification = Notification.objects.get(
-            id=notification_id, recipient=request.user
-        )
+        notification = Notification.objects.get(id=notification_id, recipient=request.user)
         notification.mark_read()
         return Response({"detail": "Marked as read."})
     except Notification.DoesNotExist:
@@ -338,7 +391,7 @@ def mark_all_read(request):
     POST /api/v1/notifications/read-all/
     Mark all notifications as read.
     """
-    Notification.objects.filter(
-        recipient=request.user, is_read=False
-    ).update(is_read=True, read_at=timezone.now())
+    Notification.objects.filter(recipient=request.user, is_read=False).update(
+        is_read=True, read_at=timezone.now()
+    )
     return Response({"detail": "All notifications marked as read."})

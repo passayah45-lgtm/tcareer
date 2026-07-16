@@ -17,6 +17,11 @@ urlpatterns = [
         views.approve_question,
         name="approve-question",
     ),
+    path(
+        "<uuid:course_id>/questions/<uuid:question_id>/structured-review/",
+        views.structured_question_review,
+        name="structured-question-review",
+    ),
     path("<uuid:course_id>/submit/", views.submit_quiz, name="submit-quiz"),
     path("<uuid:course_id>/attempts/", views.quiz_attempt_history, name="attempt-history"),
     path("<uuid:course_id>/can-attempt/", views.can_attempt_quiz, name="can-attempt"),

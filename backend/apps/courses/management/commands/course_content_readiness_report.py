@@ -53,9 +53,7 @@ class Command(BaseCommand):
     def _course_report(self, slug: str) -> dict:
         curriculum = CURRICULA[slug]
         course = (
-            Course.objects.filter(slug=slug, deleted_at=None)
-            .select_related("instructor")
-            .first()
+            Course.objects.filter(slug=slug, deleted_at=None).select_related("instructor").first()
         )
         if course is None:
             return {
@@ -74,9 +72,7 @@ class Command(BaseCommand):
             }
         lessons = Lesson.objects.filter(course=course, deleted_at=None)
         expected_titles = [
-            lesson.title
-            for module in curriculum.modules
-            for lesson in module.lessons
+            lesson.title for module in curriculum.modules for lesson in module.lessons
         ]
         empty_lessons = lessons.filter(content__exact="").count()
         missing_titles = [

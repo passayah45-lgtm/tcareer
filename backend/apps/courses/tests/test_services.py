@@ -1,17 +1,20 @@
 import pytest
-from apps.courses.models import CourseStatus, EnrollmentStatus
+
+from apps.courses.models import ContentReviewStatus, CourseReview, CourseStatus, EnrollmentStatus
 from apps.courses.services import CourseService, EnrollmentService, ProgressService
 from apps.courses.tests.factories import (
-    CourseFactory, PublishedCourseFactory, FreeCourseFactory,
-    LessonFactory, EnrollmentFactory,
+    CourseFactory,
+    EnrollmentFactory,
+    FreeCourseFactory,
+    LessonFactory,
+    PublishedCourseFactory,
 )
-from apps.users.tests.factories import UserFactory, InstructorFactory
-from common.exceptions import ServiceError, ConflictError, PermissionError
+from apps.users.tests.factories import InstructorFactory, UserFactory
+from common.exceptions import ConflictError, PermissionError, ServiceError
 
 
 @pytest.mark.django_db
 class TestCourseService:
-
     def test_get_published_courses_returns_only_published(self):
         PublishedCourseFactory()
         PublishedCourseFactory()
@@ -21,6 +24,7 @@ class TestCourseService:
 
     def test_get_published_courses_excludes_deleted(self):
         from django.utils import timezone
+
         PublishedCourseFactory()
         PublishedCourseFactory(deleted_at=timezone.now())
         courses = CourseService.get_published_courses()
@@ -33,7 +37,19 @@ class TestCourseService:
 
     def test_publish_course_success(self):
         course = CourseFactory(status=CourseStatus.DRAFT)
-        LessonFactory(course=course, is_published=True)
+        LessonFactory(
+            course=course,
+            is_published=True,
+            review_status=ContentReviewStatus.PUBLISHED,
+            published_version=1,
+            content="Reviewed lesson content",
+        )
+        CourseReview.objects.create(
+            course=course,
+            status=ContentReviewStatus.APPROVED,
+            submitted_by=course.instructor,
+            reviewer=course.instructor,
+        )
         result = CourseService.publish_course(course, course.instructor)
         assert result.status == CourseStatus.PUBLISHED
 
@@ -47,7 +63,6 @@ class TestCourseService:
 
 @pytest.mark.django_db
 class TestEnrollmentService:
-
     def test_enroll_free_course_success(self):
         user = UserFactory()
         course = FreeCourseFactory()
@@ -70,6 +85,7 @@ class TestEnrollmentService:
 
     def test_enroll_paid_course_without_subscription_raises_error(self):
         from decimal import Decimal
+
         user = UserFactory()
         course = PublishedCourseFactory(price=Decimal("19.99"))
         with pytest.raises(PermissionError, match="subscription"):
@@ -78,7 +94,6 @@ class TestEnrollmentService:
 
 @pytest.mark.django_db
 class TestProgressService:
-
     def test_update_progress_saves_percentage(self):
         enrollment = EnrollmentFactory()
         lesson = LessonFactory(course=enrollment.course)
@@ -112,7 +127,7 @@ class TestProgressService:
     def test_get_course_progress_percentage(self):
         enrollment = EnrollmentFactory()
         lesson1 = LessonFactory(course=enrollment.course, is_published=True)
-        lesson2 = LessonFactory(course=enrollment.course, is_published=True)
+        LessonFactory(course=enrollment.course, is_published=True)
         ProgressService.update_progress(enrollment, lesson1, 100)
         result = ProgressService.get_course_progress(enrollment)
         assert result["total_lessons"] == 2

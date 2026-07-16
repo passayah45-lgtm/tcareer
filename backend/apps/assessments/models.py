@@ -67,7 +67,10 @@ class QuizQuestion(BaseModel):
     question_type = models.CharField(
         max_length=40, blank=True, default="multiple_choice", db_index=True
     )
+    category = models.CharField(max_length=120, blank=True, default="", db_index=True)
+    reusable_key = models.SlugField(max_length=160, blank=True, default="", db_index=True)
     lesson_mapping = models.CharField(max_length=255, blank=True, default="")
+    learning_objective = models.CharField(max_length=500, blank=True, default="")
     difficulty = models.CharField(max_length=30, blank=True, default="beginner", db_index=True)
     review_status = models.CharField(
         max_length=30,
@@ -91,6 +94,7 @@ class QuizQuestion(BaseModel):
         ordering = ["position"]
         indexes = [
             models.Index(fields=["course", "position"]),
+            models.Index(fields=["course", "category"], name="quiz_q_course_category_idx"),
             models.Index(fields=["course", "review_status"], name="quiz_q_course_review_idx"),
             models.Index(
                 fields=["course", "is_certificate_eligible"], name="quiz_q_course_cert_idx"
@@ -148,6 +152,34 @@ class QuizAttempt(BaseModel):
             f"{self.enrollment.user.email} - {self.enrollment.course.title} "
             f"attempt {self.attempt_number}: {self.percentage}%"
         )
+
+
+class QuestionReviewDecision(BaseModel):
+    question = models.ForeignKey(
+        QuizQuestion,
+        on_delete=models.CASCADE,
+        related_name="review_decisions",
+    )
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="question_review_decisions",
+    )
+    assignment_id = models.UUIDField(null=True, blank=True, db_index=True)
+    decision = models.CharField(max_length=40, db_index=True)
+    section_comments = models.JSONField(default=dict, blank=True)
+    required_changes = models.JSONField(default=list, blank=True)
+    certificate_eligible = models.BooleanField(default=False)
+    marked_reusable = models.BooleanField(default=False)
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "question_review_decisions"
+        indexes = [
+            models.Index(fields=["question", "decision"]),
+            models.Index(fields=["reviewer", "created_at"]),
+        ]
+        ordering = ["-created_at"]
 
 
 class CourseRating(BaseModel):

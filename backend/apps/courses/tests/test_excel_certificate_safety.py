@@ -13,8 +13,9 @@ from apps.courses.models import (
     EnrollmentStatus,
     Lesson,
     LessonProgress,
+    ReviewerRole,
 )
-from apps.courses.services import CourseService
+from apps.courses.services import AcademicReviewAssignmentService, CourseService
 from apps.users.tests.factories import AdminFactory, InstructorFactory, UserFactory
 from common.exceptions import PermissionError, ServiceError
 
@@ -81,27 +82,37 @@ def test_unauthorized_user_cannot_approve_question():
 @pytest.mark.django_db
 def test_authorized_reviewer_can_approve_question_and_audit():
     instructor = InstructorFactory()
+    reviewer = UserFactory()
+    AcademicReviewAssignmentService.ensure_reviewer_profile(
+        reviewer,
+        role=ReviewerRole.COURSE_REVIEWER,
+    )
     course = make_course(instructor)
     question = add_questions(course, 1)[0]
 
-    QuestionReviewService.approve(question, instructor, notes="Reviewed.")
+    QuestionReviewService.approve(question, reviewer, notes="Reviewed.")
 
     question.refresh_from_db()
     assert question.review_status == QuestionReviewStatus.APPROVED
-    assert question.reviewed_by == instructor
+    assert question.reviewed_by == reviewer
     assert question.is_certificate_eligible is True
 
 
 @pytest.mark.django_db
 def test_review_marker_blocks_approval():
     instructor = InstructorFactory()
+    reviewer = UserFactory()
+    AcademicReviewAssignmentService.ensure_reviewer_profile(
+        reviewer,
+        role=ReviewerRole.COURSE_REVIEWER,
+    )
     course = make_course(instructor)
     question = add_questions(course, 1)[0]
     question.explanation = "[REVIEW REQUIRED] Needs review."
     question.save(update_fields=["explanation", "updated_at"])
 
     with pytest.raises(ServiceError, match="review markers"):
-        QuestionReviewService.approve(question, instructor)
+        QuestionReviewService.approve(question, reviewer)
 
 
 @pytest.mark.django_db

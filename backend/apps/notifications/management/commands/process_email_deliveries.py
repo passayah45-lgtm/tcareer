@@ -12,8 +12,14 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--limit", type=int, default=50, help="Maximum deliveries to process.")
-        parser.add_argument("--retry-failed", action="store_true", help="Retry failed deliveries instead of pending ones.")
-        parser.add_argument("--dry-run", action="store_true", help="List eligible deliveries without sending email.")
+        parser.add_argument(
+            "--retry-failed",
+            action="store_true",
+            help="Retry failed deliveries instead of pending ones.",
+        )
+        parser.add_argument(
+            "--dry-run", action="store_true", help="List eligible deliveries without sending email."
+        )
 
     def handle(self, *args, **options):
         limit = max(0, options["limit"])
@@ -28,6 +34,11 @@ class Command(BaseCommand):
         mode = "Dry run" if dry_run else "Processed"
         logger.info(
             "email_delivery_command_completed",
-            extra={"mode": mode.lower().replace(" ", "_"), "label": label, "count": len(deliveries), "limit": limit},
+            extra={
+                "mode": mode.lower().replace(" ", "_"),
+                "label": label,
+                "count": len(deliveries),
+                "limit": limit,
+            },
         )
         self.stdout.write(self.style.SUCCESS(f"{mode} {len(deliveries)} {label} email deliveries."))

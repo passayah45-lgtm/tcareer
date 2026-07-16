@@ -4,8 +4,15 @@ from faker import Faker
 
 from apps.users.tests.factories import UserFactory, InstructorFactory
 from apps.courses.models import (
-    Course, Lesson, VideoLesson, Enrollment, LessonProgress,
-    CourseStatus, LessonType, TranscodingStatus, EnrollmentStatus,
+    Course,
+    Lesson,
+    VideoLesson,
+    Enrollment,
+    LessonProgress,
+    CourseStatus,
+    LessonType,
+    TranscodingStatus,
+    EnrollmentStatus,
 )
 
 fake = Faker()
@@ -21,7 +28,9 @@ class CourseFactory(DjangoModelFactory):
     description = factory.LazyFunction(lambda: fake.paragraph(nb_sentences=5))
     level = "beginner"
     status = CourseStatus.DRAFT
-    price = factory.LazyFunction(lambda: fake.pydecimal(left_digits=2, right_digits=2, min_value=1, max_value=99))
+    price = factory.LazyFunction(
+        lambda: fake.pydecimal(left_digits=2, right_digits=2, min_value=1, max_value=99)
+    )
     requirements = factory.LazyFunction(lambda: ["Basic computer literacy"])
     what_you_learn = factory.LazyFunction(lambda: ["Complete the course objectives"])
 
@@ -52,8 +61,12 @@ class VideoLessonFactory(DjangoModelFactory):
         model = VideoLesson
 
     lesson = factory.SubFactory(LessonFactory)
-    hls_url = factory.LazyFunction(lambda: f"https://cdn.tcareer.com/hls/{fake.uuid4()}/master.m3u8")
-    thumbnail_url = factory.LazyFunction(lambda: f"https://cdn.tcareer.com/thumbnails/{fake.uuid4()}.jpg")
+    hls_url = factory.LazyFunction(
+        lambda: f"https://cdn.tcareer.com/hls/{fake.uuid4()}/master.m3u8"
+    )
+    thumbnail_url = factory.LazyFunction(
+        lambda: f"https://cdn.tcareer.com/thumbnails/{fake.uuid4()}.jpg"
+    )
     duration_seconds = factory.LazyFunction(lambda: fake.random_int(min=60, max=3600))
     transcoding_status = TranscodingStatus.COMPLETE
 

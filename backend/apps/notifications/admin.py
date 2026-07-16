@@ -51,7 +51,16 @@ def cancel_email_deliveries(modeladmin, request, queryset):
 
 @admin.register(EmailDelivery)
 class EmailDeliveryAdmin(admin.ModelAdmin):
-    list_display = ("recipient_email", "template_key", "category", "status", "retry_count", "created_at", "sent_at", "failed_at")
+    list_display = (
+        "recipient_email",
+        "template_key",
+        "category",
+        "status",
+        "retry_count",
+        "created_at",
+        "sent_at",
+        "failed_at",
+    )
     list_filter = ("status", "template_key", "category", "created_at", "sent_at", "failed_at")
     search_fields = ("recipient_email", "subject", "last_error", "provider_message_id")
     readonly_fields = tuple(field.name for field in EmailDelivery._meta.fields)

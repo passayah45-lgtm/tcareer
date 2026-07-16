@@ -47,7 +47,19 @@ class NotificationType(models.TextChoices):
     OFFER_ACCEPTED = "offer_accepted", "Offer Accepted"
     OFFER_DECLINED = "offer_declined", "Offer Declined"
     RECRUITER_INVITED = "recruiter_invited", "Recruiter Invited"
-    ORGANIZATION_INVITATION_ACCEPTED = "organization_invitation_accepted", "Organization Invitation Accepted"
+    ORGANIZATION_INVITATION_ACCEPTED = (
+        "organization_invitation_accepted",
+        "Organization Invitation Accepted",
+    )
+    ACADEMIC_REVIEW_ASSIGNED = "academic_review_assigned", "Academic Review Assigned"
+    ACADEMIC_REVIEW_DUE_SOON = "academic_review_due_soon", "Academic Review Due Soon"
+    ACADEMIC_REVIEW_OVERDUE = "academic_review_overdue", "Academic Review Overdue"
+    ACADEMIC_CHANGES_REQUESTED = "academic_changes_requested", "Academic Changes Requested"
+    ACADEMIC_INSTRUCTOR_RESPONDED = "academic_instructor_responded", "Academic Instructor Responded"
+    ACADEMIC_CONTENT_RESUBMITTED = "academic_content_resubmitted", "Academic Content Resubmitted"
+    ACADEMIC_CONTENT_APPROVED = "academic_content_approved", "Academic Content Approved"
+    ACADEMIC_CONTENT_REJECTED = "academic_content_rejected", "Academic Content Rejected"
+    PUBLICATION_BLOCKED = "publication_blocked", "Publication Blocked"
 
 
 class NotificationCategory(models.TextChoices):
@@ -79,6 +91,15 @@ NOTIFICATION_CATEGORY_BY_TYPE = {
     NotificationType.OFFER_DECLINED: NotificationCategory.OFFERS,
     NotificationType.RECRUITER_INVITED: NotificationCategory.RECRUITER_INVITES,
     NotificationType.ORGANIZATION_INVITATION_ACCEPTED: NotificationCategory.ORGANIZATION_INVITES,
+    NotificationType.ACADEMIC_REVIEW_ASSIGNED: NotificationCategory.COURSE_UPDATES,
+    NotificationType.ACADEMIC_REVIEW_DUE_SOON: NotificationCategory.COURSE_UPDATES,
+    NotificationType.ACADEMIC_REVIEW_OVERDUE: NotificationCategory.COURSE_UPDATES,
+    NotificationType.ACADEMIC_CHANGES_REQUESTED: NotificationCategory.COURSE_UPDATES,
+    NotificationType.ACADEMIC_INSTRUCTOR_RESPONDED: NotificationCategory.COURSE_UPDATES,
+    NotificationType.ACADEMIC_CONTENT_RESUBMITTED: NotificationCategory.COURSE_UPDATES,
+    NotificationType.ACADEMIC_CONTENT_APPROVED: NotificationCategory.COURSE_UPDATES,
+    NotificationType.ACADEMIC_CONTENT_REJECTED: NotificationCategory.COURSE_UPDATES,
+    NotificationType.PUBLICATION_BLOCKED: NotificationCategory.SECURITY,
 }
 
 
@@ -129,6 +150,7 @@ class Notification(BaseModel):
     def mark_read(self):
         if not self.is_read:
             from django.utils import timezone
+
             self.is_read = True
             self.read_at = timezone.now()
             self.save(update_fields=["is_read", "read_at"])
@@ -167,14 +189,18 @@ class EmailSuppression(BaseModel):
         blank=True,
     )
     email = models.EmailField(db_index=True)
-    category = models.CharField(max_length=40, choices=NotificationCategory.choices, blank=True, default="", db_index=True)
+    category = models.CharField(
+        max_length=40, choices=NotificationCategory.choices, blank=True, default="", db_index=True
+    )
     reason = models.CharField(max_length=100, blank=True, default="")
     is_active = models.BooleanField(default=True, db_index=True)
 
     class Meta:
         db_table = "email_suppressions"
         indexes = [
-            models.Index(fields=["email", "category", "is_active"], name="email_suppression_lookup_idx"),
+            models.Index(
+                fields=["email", "category", "is_active"], name="email_suppression_lookup_idx"
+            ),
         ]
 
 
@@ -193,7 +219,9 @@ class NotificationUnsubscribeToken(BaseModel):
     class Meta:
         db_table = "notification_unsubscribe_tokens"
         indexes = [
-            models.Index(fields=["email", "category", "expires_at"], name="notif_unsub_email_cat_idx"),
+            models.Index(
+                fields=["email", "category", "expires_at"], name="notif_unsub_email_cat_idx"
+            ),
         ]
 
     @staticmethod
@@ -201,7 +229,9 @@ class NotificationUnsubscribeToken(BaseModel):
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
     @classmethod
-    def create_token(cls, user, category: str, expires_at=None) -> tuple["NotificationUnsubscribeToken", str]:
+    def create_token(
+        cls, user, category: str, expires_at=None
+    ) -> tuple["NotificationUnsubscribeToken", str]:
         token = get_random_string(48)
         instance = cls.objects.create(
             user=user,
@@ -215,7 +245,9 @@ class NotificationUnsubscribeToken(BaseModel):
     @classmethod
     def validate_token(cls, token: str):
         token_hash = cls.hash_token(token)
-        candidate = cls.objects.filter(token_hash=token_hash, used_at__isnull=True, expires_at__gt=timezone.now()).first()
+        candidate = cls.objects.filter(
+            token_hash=token_hash, used_at__isnull=True, expires_at__gt=timezone.now()
+        ).first()
         if candidate and constant_time_compare(candidate.token_hash, token_hash):
             return candidate
         return None
@@ -289,7 +321,16 @@ class EmailDelivery(BaseModel):
         self.failed_at = None
         self.last_error = ""
         self.provider_message_id = provider_message_id
-        self.save(update_fields=["status", "sent_at", "failed_at", "last_error", "provider_message_id", "updated_at"])
+        self.save(
+            update_fields=[
+                "status",
+                "sent_at",
+                "failed_at",
+                "last_error",
+                "provider_message_id",
+                "updated_at",
+            ]
+        )
         return self
 
 
@@ -387,14 +428,19 @@ class EmailDeliveryService:
             return False
         if "locmem" in backend:
             return True
-        return bool(getattr(settings, "EMAIL_HOST", "") and getattr(settings, "DEFAULT_FROM_EMAIL", ""))
+        return bool(
+            getattr(settings, "EMAIL_HOST", "") and getattr(settings, "DEFAULT_FROM_EMAIL", "")
+        )
 
     @staticmethod
-    def render_template(template_key: str, notification: Notification, metadata: dict | None = None) -> tuple[str, str, str]:
+    def render_template(
+        template_key: str, notification: Notification, metadata: dict | None = None
+    ) -> tuple[str, str, str]:
         payload = notification.payload or {}
         context = SafeTemplateDict(
             {
-                "recipient_name": notification.recipient.get_full_name() or notification.recipient.email,
+                "recipient_name": notification.recipient.get_full_name()
+                or notification.recipient.email,
                 "title": notification.title,
                 "body": notification.body,
                 **payload,
@@ -403,7 +449,11 @@ class EmailDeliveryService:
         )
         template = EMAIL_TEMPLATES.get(template_key)
         if not template:
-            return payload.get("email_subject") or notification.title, payload.get("email_body") or notification.body, ""
+            return (
+                payload.get("email_subject") or notification.title,
+                payload.get("email_body") or notification.body,
+                "",
+            )
         html = EmailDeliveryService.wrap_html_template(template.get("html", "").format_map(context))
         return template["subject"].format_map(context), template["body"].format_map(context), html
 
@@ -412,20 +462,24 @@ class EmailDeliveryService:
         if not content:
             return ""
         return (
-            "<!doctype html><html><body style=\"margin:0;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a;\">"
-            "<div style=\"max-width:640px;margin:0 auto;padding:24px;\">"
-            "<div style=\"font-weight:700;font-size:20px;color:#2563eb;margin-bottom:20px;\">T-Career</div>"
-            f"<div style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:24px;line-height:1.6;\">{content}</div>"
-            "<p style=\"font-size:12px;color:#64748b;margin-top:16px;\">You are receiving this because of your T-Career account activity.</p>"
+            '<!doctype html><html><body style="margin:0;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a;">'
+            '<div style="max-width:640px;margin:0 auto;padding:24px;">'
+            '<div style="font-weight:700;font-size:20px;color:#2563eb;margin-bottom:20px;">T-Career</div>'
+            f'<div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:24px;line-height:1.6;">{content}</div>'
+            '<p style="font-size:12px;color:#64748b;margin-top:16px;">You are receiving this because of your T-Career account activity.</p>'
             "</div></body></html>"
         )
 
     @staticmethod
     def category_for_notification(notification: Notification) -> str:
         payload = notification.payload or {}
-        return payload.get("category") or notification.category or NOTIFICATION_CATEGORY_BY_TYPE.get(
-            notification.notification_type,
-            NotificationCategory.SECURITY,
+        return (
+            payload.get("category")
+            or notification.category
+            or NOTIFICATION_CATEGORY_BY_TYPE.get(
+                notification.notification_type,
+                NotificationCategory.SECURITY,
+            )
         )
 
     @staticmethod
@@ -446,20 +500,30 @@ class EmailDeliveryService:
         ).exists()
 
     @staticmethod
-    def create_for_notification(notification: Notification, template_key: str = "", metadata: dict | None = None) -> EmailDelivery:
+    def create_for_notification(
+        notification: Notification, template_key: str = "", metadata: dict | None = None
+    ) -> EmailDelivery:
         payload = notification.payload or {}
-        template_key = template_key or payload.get("template_key") or EMAIL_TEMPLATE_BY_NOTIFICATION_TYPE.get(
-            notification.notification_type,
-            notification.notification_type,
+        template_key = (
+            template_key
+            or payload.get("template_key")
+            or EMAIL_TEMPLATE_BY_NOTIFICATION_TYPE.get(
+                notification.notification_type,
+                notification.notification_type,
+            )
         )
         category = EmailDeliveryService.category_for_notification(notification)
-        subject, body, body_html = EmailDeliveryService.render_template(template_key, notification, metadata)
+        subject, body, body_html = EmailDeliveryService.render_template(
+            template_key, notification, metadata
+        )
         status = EmailDeliveryStatus.PENDING
         last_error = ""
         if not EmailDeliveryService.preference_allows_email(notification.recipient, category):
             status = EmailDeliveryStatus.CANCELLED
             last_error = "Email disabled by notification preferences."
-        elif EmailDeliveryService.is_suppressed(notification.recipient, notification.recipient.email, category):
+        elif EmailDeliveryService.is_suppressed(
+            notification.recipient, notification.recipient.email, category
+        ):
             status = EmailDeliveryStatus.CANCELLED
             last_error = "Email suppressed for this recipient/category."
         delivery_metadata = {**payload, **(metadata or {})}
@@ -493,7 +557,11 @@ class EmailDeliveryService:
     @staticmethod
     def send_email_delivery(delivery_id, dry_run: bool = False) -> EmailDelivery:
         with transaction.atomic():
-            delivery = EmailDelivery.objects.select_for_update().select_related("recipient").get(id=delivery_id)
+            delivery = (
+                EmailDelivery.objects.select_for_update()
+                .select_related("recipient")
+                .get(id=delivery_id)
+            )
             if delivery.status == EmailDeliveryStatus.SENT:
                 return delivery
             if delivery.status == EmailDeliveryStatus.CANCELLED:
@@ -502,18 +570,28 @@ class EmailDeliveryService:
                 processing_timeout = timezone.timedelta(
                     seconds=getattr(settings, "EMAIL_DELIVERY_PROCESSING_TIMEOUT_SECONDS", 900)
                 )
-                if delivery.updated_at and delivery.updated_at > timezone.now() - processing_timeout:
-                    logger.info("email_delivery_already_processing", extra={"delivery_id": str(delivery.id)})
+                if (
+                    delivery.updated_at
+                    and delivery.updated_at > timezone.now() - processing_timeout
+                ):
+                    logger.info(
+                        "email_delivery_already_processing", extra={"delivery_id": str(delivery.id)}
+                    )
                     return delivery
             elif delivery.status not in EmailDeliveryService.SENDABLE_STATUSES:
                 return delivery
             if dry_run:
                 return delivery
             idempotency_key = (delivery.metadata or {}).get("idempotency_key")
-            if idempotency_key and EmailDelivery.objects.filter(
-                metadata__idempotency_key=idempotency_key,
-                status=EmailDeliveryStatus.SENT,
-            ).exclude(id=delivery.id).exists():
+            if (
+                idempotency_key
+                and EmailDelivery.objects.filter(
+                    metadata__idempotency_key=idempotency_key,
+                    status=EmailDeliveryStatus.SENT,
+                )
+                .exclude(id=delivery.id)
+                .exists()
+            ):
                 delivery.status = EmailDeliveryStatus.CANCELLED
                 delivery.last_error = "Duplicate delivery idempotency key already sent."
                 delivery.save(update_fields=["status", "last_error", "updated_at"])
@@ -526,19 +604,32 @@ class EmailDeliveryService:
                 delivery.status = EmailDeliveryStatus.CANCELLED
                 delivery.last_error = "Recipient account is inactive."
                 delivery.save(update_fields=["status", "last_error", "updated_at"])
-                logger.info("email_delivery_cancelled_inactive_account", extra={"delivery_id": str(delivery.id)})
+                logger.info(
+                    "email_delivery_cancelled_inactive_account",
+                    extra={"delivery_id": str(delivery.id)},
+                )
                 return delivery
-            if not EmailDeliveryService.preference_allows_email(delivery.recipient, delivery.category):
+            if not EmailDeliveryService.preference_allows_email(
+                delivery.recipient, delivery.category
+            ):
                 delivery.status = EmailDeliveryStatus.CANCELLED
                 delivery.last_error = "Email disabled by notification preferences."
                 delivery.save(update_fields=["status", "last_error", "updated_at"])
-                logger.info("email_delivery_cancelled_preferences", extra={"delivery_id": str(delivery.id), "category": delivery.category})
+                logger.info(
+                    "email_delivery_cancelled_preferences",
+                    extra={"delivery_id": str(delivery.id), "category": delivery.category},
+                )
                 return delivery
-            if EmailDeliveryService.is_suppressed(delivery.recipient, delivery.recipient_email, delivery.category):
+            if EmailDeliveryService.is_suppressed(
+                delivery.recipient, delivery.recipient_email, delivery.category
+            ):
                 delivery.status = EmailDeliveryStatus.CANCELLED
                 delivery.last_error = "Email suppressed for this recipient/category."
                 delivery.save(update_fields=["status", "last_error", "updated_at"])
-                logger.info("email_delivery_cancelled_suppression", extra={"delivery_id": str(delivery.id), "category": delivery.category})
+                logger.info(
+                    "email_delivery_cancelled_suppression",
+                    extra={"delivery_id": str(delivery.id), "category": delivery.category},
+                )
                 return delivery
             metadata = delivery.metadata or {}
             metadata.setdefault("idempotency_key", f"delivery:{delivery.id}")
@@ -559,8 +650,12 @@ class EmailDeliveryService:
             delivery.status = EmailDeliveryStatus.FAILED
             delivery.last_error = "SMTP is not configured; delivery was not sent."
             delivery.failed_at = timezone.now()
-            delivery.save(update_fields=["retry_count", "status", "last_error", "failed_at", "updated_at"])
-            logger.warning("email_delivery_failed_missing_smtp", extra={"delivery_id": str(delivery.id)})
+            delivery.save(
+                update_fields=["retry_count", "status", "last_error", "failed_at", "updated_at"]
+            )
+            logger.warning(
+                "email_delivery_failed_missing_smtp", extra={"delivery_id": str(delivery.id)}
+            )
             return delivery
         try:
             send_mail(
@@ -573,27 +668,49 @@ class EmailDeliveryService:
             )
         except Exception as exc:
             delivery.retry_count += 1
-            delivery.status = EmailDeliveryStatus.RETRYING if delivery.retry_count < max_retries else EmailDeliveryStatus.FAILED
+            delivery.status = (
+                EmailDeliveryStatus.RETRYING
+                if delivery.retry_count < max_retries
+                else EmailDeliveryStatus.FAILED
+            )
             delivery.last_error = str(exc)[:2000]
-            delivery.failed_at = timezone.now() if delivery.status == EmailDeliveryStatus.FAILED else None
-            delivery.save(update_fields=["retry_count", "status", "last_error", "failed_at", "updated_at"])
-            logger.warning("email_delivery_send_failed", extra={"delivery_id": str(delivery.id), "error": str(exc)[:200]})
+            delivery.failed_at = (
+                timezone.now() if delivery.status == EmailDeliveryStatus.FAILED else None
+            )
+            delivery.save(
+                update_fields=["retry_count", "status", "last_error", "failed_at", "updated_at"]
+            )
+            logger.warning(
+                "email_delivery_send_failed",
+                extra={"delivery_id": str(delivery.id), "error": str(exc)[:200]},
+            )
             return delivery
         sent = delivery.mark_sent()
-        logger.info("email_delivery_sent", extra={"delivery_id": str(delivery.id), "category": delivery.category})
+        logger.info(
+            "email_delivery_sent",
+            extra={"delivery_id": str(delivery.id), "category": delivery.category},
+        )
         return sent
 
     @staticmethod
     def bulk_process_pending(limit: int = 50, dry_run: bool = False) -> list[EmailDelivery]:
         deliveries = list(
-            EmailDelivery.objects.filter(status__in=EmailDeliveryService.PROCESSABLE_STATUSES)
-            .order_by("created_at")[:limit]
+            EmailDelivery.objects.filter(
+                status__in=EmailDeliveryService.PROCESSABLE_STATUSES
+            ).order_by("created_at")[:limit]
         )
-        return [EmailDeliveryService.send_email_delivery(delivery.id, dry_run=dry_run) for delivery in deliveries]
+        return [
+            EmailDeliveryService.send_email_delivery(delivery.id, dry_run=dry_run)
+            for delivery in deliveries
+        ]
 
     @staticmethod
     def retry_failed(limit: int = 50, dry_run: bool = False) -> list[EmailDelivery]:
-        deliveries = list(EmailDelivery.objects.filter(status=EmailDeliveryStatus.FAILED).order_by("created_at")[:limit])
+        deliveries = list(
+            EmailDelivery.objects.filter(status=EmailDeliveryStatus.FAILED).order_by("created_at")[
+                :limit
+            ]
+        )
         if dry_run:
             return deliveries
         processed = []
@@ -634,7 +751,11 @@ class EmailProviderWebhookService:
         if delivery is None:
             return None, False
 
-        delivery = EmailDelivery.objects.select_for_update().select_related("recipient").get(id=delivery.id)
+        delivery = (
+            EmailDelivery.objects.select_for_update()
+            .select_related("recipient")
+            .get(id=delivery.id)
+        )
         metadata = delivery.metadata or {}
         events = metadata.setdefault("provider_events", [])
         event_id = EmailProviderWebhookService._event_id(payload)
@@ -646,7 +767,9 @@ class EmailProviderWebhookService:
                 "event_id": event_id,
                 "event": event_type,
                 "received_at": timezone.now().isoformat(),
-                "provider_message_id": payload.get("provider_message_id") or payload.get("message_id") or "",
+                "provider_message_id": payload.get("provider_message_id")
+                or payload.get("message_id")
+                or "",
                 "metadata": payload.get("metadata") or {},
             }
         )
@@ -659,11 +782,26 @@ class EmailProviderWebhookService:
             delivery.failed_at = timezone.now()
             delivery.last_error = str(payload.get("reason") or event_type)[:2000]
         if payload.get("provider_message_id") or payload.get("message_id"):
-            delivery.provider_message_id = payload.get("provider_message_id") or payload.get("message_id")
+            delivery.provider_message_id = payload.get("provider_message_id") or payload.get(
+                "message_id"
+            )
         delivery.metadata = metadata
-        delivery.save(update_fields=["status", "sent_at", "failed_at", "last_error", "provider_message_id", "metadata", "updated_at"])
+        delivery.save(
+            update_fields=[
+                "status",
+                "sent_at",
+                "failed_at",
+                "last_error",
+                "provider_message_id",
+                "metadata",
+                "updated_at",
+            ]
+        )
 
-        if event_type in EmailProviderWebhookService.HIGH_RISK_EVENTS and delivery.category != NotificationCategory.SECURITY:
+        if (
+            event_type in EmailProviderWebhookService.HIGH_RISK_EVENTS
+            and delivery.category != NotificationCategory.SECURITY
+        ):
             EmailSuppression.objects.update_or_create(
                 user=delivery.recipient,
                 email=delivery.recipient_email,
@@ -676,7 +814,10 @@ class EmailProviderWebhookService:
                 actor=None,
                 action=f"email_{event_type}",
                 target=delivery,
-                metadata={"category": delivery.category, "recipient_email": delivery.recipient_email},
+                metadata={
+                    "category": delivery.category,
+                    "recipient_email": delivery.recipient_email,
+                },
             )
             AuditService.record(
                 actor=None,
@@ -712,7 +853,9 @@ class NotificationService:
         action_url: str = "",
         payload: dict = None,
     ) -> "Notification":
-        category = (payload or {}).get("category") or NOTIFICATION_CATEGORY_BY_TYPE.get(notification_type, NotificationCategory.SECURITY)
+        category = (payload or {}).get("category") or NOTIFICATION_CATEGORY_BY_TYPE.get(
+            notification_type, NotificationCategory.SECURITY
+        )
         notification = Notification.objects.create(
             recipient=recipient,
             notification_type=notification_type,
@@ -732,10 +875,16 @@ class NotificationService:
                     actor=None,
                     action="security_notification_sent",
                     target=notification,
-                    metadata={"recipient_id": str(recipient.id), "notification_type": notification_type},
+                    metadata={
+                        "recipient_id": str(recipient.id),
+                        "notification_type": notification_type,
+                    },
                 )
             except Exception:
-                logger.exception("security_notification_audit_failed", extra={"notification_id": str(notification.id)})
+                logger.exception(
+                    "security_notification_audit_failed",
+                    extra={"notification_id": str(notification.id)},
+                )
         return notification
 
     @staticmethod

@@ -1,6 +1,5 @@
 from apps.users.models import UserRole
 
-
 PRIVILEGED_PLATFORM_ROLES = {
     UserRole.ADMIN,
     UserRole.PLATFORM_ADMIN,
@@ -53,14 +52,18 @@ class PermissionService:
         if PermissionService.is_platform_admin(user):
             return True
         if export_type == "audit_logs":
-            return PermissionService.has_org_role(user, organization, {"export_manager", "platform_admin", "super_admin"})
+            return PermissionService.has_org_role(
+                user, organization, {"export_manager", "platform_admin", "super_admin"}
+            )
         return PermissionService.has_org_role(user, organization, ENTERPRISE_EXPORT_ROLES)
 
     @staticmethod
     def _active_membership(user, organization):
         if not user or not user.is_authenticated or organization is None:
             return None
-        return user.organization_memberships.filter(organization=organization, status="active").first()
+        return user.organization_memberships.filter(
+            organization=organization, status="active"
+        ).first()
 
     @staticmethod
     def can_manage_department(user, department) -> bool:
@@ -70,7 +73,9 @@ class PermissionService:
         return bool(
             membership
             and membership.role == "department_manager"
-            and department.members.filter(membership=membership, role__in={"manager", "admin"}).exists()
+            and department.members.filter(
+                membership=membership, role__in={"manager", "admin"}
+            ).exists()
         )
 
     @staticmethod
@@ -97,7 +102,10 @@ class PermissionService:
 
     @staticmethod
     def can_view_organization(user, organization) -> bool:
-        if bool(user and user.is_authenticated) and getattr(organization, "created_by_id", None) == user.id:
+        if (
+            bool(user and user.is_authenticated)
+            and getattr(organization, "created_by_id", None) == user.id
+        ):
             return True
         if PermissionService.can_manage_organization(user, organization):
             return True
@@ -129,6 +137,70 @@ class PermissionService:
     @staticmethod
     def can_publish_course(user, course) -> bool:
         return PermissionService.is_platform_admin(user) or course.instructor_id == user.id
+
+    @staticmethod
+    def is_academic_admin(user) -> bool:
+        return bool(
+            user
+            and user.is_authenticated
+            and (
+                user.is_superuser
+                or user.role in {UserRole.ADMIN, UserRole.PLATFORM_ADMIN, UserRole.SUPER_ADMIN}
+            )
+        )
+
+    @staticmethod
+    def is_academic_reviewer(user) -> bool:
+        if PermissionService.is_academic_admin(user):
+            return True
+        if not user or not user.is_authenticated:
+            return False
+        profile = getattr(user, "academic_reviewer_profile", None)
+        return bool(profile and profile.is_active)
+
+    @staticmethod
+    def can_assign_academic_review(user, course=None, organization=None) -> bool:
+        if PermissionService.is_academic_admin(user):
+            return True
+        if not user or not user.is_authenticated:
+            return False
+        profile = getattr(user, "academic_reviewer_profile", None)
+        if not profile or not profile.is_active:
+            return False
+        if profile.reviewer_role == "lead_reviewer":
+            if profile.organization_id and organization is not None:
+                return profile.organization_id == getattr(organization, "id", None)
+            return True
+        return False
+
+    @staticmethod
+    def can_view_academic_assignment(user, assignment) -> bool:
+        if PermissionService.is_academic_admin(user):
+            return True
+        if not user or not user.is_authenticated:
+            return False
+        if assignment.assigned_reviewer_id == user.id:
+            return True
+        if assignment.course_id and assignment.course.instructor_id == user.id:
+            return True
+        profile = getattr(user, "academic_reviewer_profile", None)
+        if not profile or not profile.is_active:
+            return False
+        if profile.reviewer_role in {"lead_reviewer", "platform_academic_reviewer"}:
+            if profile.organization_id and assignment.organization_id:
+                return profile.organization_id == assignment.organization_id
+            return profile.reviewer_role == "platform_academic_reviewer"
+        return False
+
+    @staticmethod
+    def can_decide_academic_review(user, assignment) -> bool:
+        if PermissionService.is_academic_admin(user):
+            return True
+        if not user or not user.is_authenticated:
+            return False
+        if assignment.course_id and assignment.course.instructor_id == user.id:
+            return False
+        return assignment.assigned_reviewer_id == user.id
 
     @staticmethod
     def can_access_lesson(user, lesson) -> bool:
@@ -217,7 +289,13 @@ class PermissionService:
             user
             and user.is_authenticated
             and (
-                user.role in {UserRole.ADMIN, UserRole.CONTENT_MODERATOR, UserRole.PLATFORM_ADMIN, UserRole.SUPER_ADMIN}
+                user.role
+                in {
+                    UserRole.ADMIN,
+                    UserRole.CONTENT_MODERATOR,
+                    UserRole.PLATFORM_ADMIN,
+                    UserRole.SUPER_ADMIN,
+                }
                 or user.is_superuser
             )
         )

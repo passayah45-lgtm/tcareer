@@ -3,7 +3,13 @@ from django.core import mail
 from django.core.management import call_command
 from django.test import override_settings
 
-from apps.notifications.models import EmailDelivery, EmailDeliveryService, EmailDeliveryStatus, Notification, NotificationType
+from apps.notifications.models import (
+    EmailDelivery,
+    EmailDeliveryService,
+    EmailDeliveryStatus,
+    Notification,
+    NotificationType,
+)
 from apps.users.tests.factories import UserFactory
 
 

@@ -8,7 +8,13 @@ from common.audit import AuditService
 from common.exceptions import ConflictError, PermissionError, ServiceError
 from common.permission_service import PermissionService
 
-from .models import CourseRating, QuestionReviewStatus, QuizAttempt, QuizQuestion
+from .models import (
+    CourseRating,
+    QuestionReviewDecision,
+    QuestionReviewStatus,
+    QuizAttempt,
+    QuizQuestion,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -187,9 +193,7 @@ class RatingService:
         try:
             enrollment = Enrollment.objects.get(user=user, course=course)
         except Enrollment.DoesNotExist as exc:
-            raise PermissionError(
-                "You must be enrolled in this course to rate it."
-            ) from exc
+            raise PermissionError("You must be enrolled in this course to rate it.") from exc
 
         if enrollment.status != EnrollmentStatus.COMPLETED:
             raise PermissionError("Complete the course before leaving a review.")
@@ -284,6 +288,9 @@ class QuizBuilderService:
                         explanation=q_data.get("explanation", ""),
                         position=position,
                         question_type=q_data.get("question_type", "multiple_choice"),
+                        category=q_data.get("category", ""),
+                        reusable_key=q_data.get("reusable_key", ""),
+                        learning_objective=q_data.get("learning_objective", ""),
                         lesson_mapping=q_data.get("lesson_mapping", ""),
                         difficulty=q_data.get("difficulty", "beginner"),
                         review_status=review_status,
@@ -338,9 +345,9 @@ class QuizBuilderService:
 class QuestionReviewService:
     @staticmethod
     def can_review(user, question: QuizQuestion) -> bool:
-        return PermissionService.is_platform_admin(
-            user
-        ) or question.course.instructor_id == getattr(user, "id", None)
+        if question.course.instructor_id == getattr(user, "id", None):
+            return False
+        return PermissionService.is_academic_reviewer(user)
 
     @staticmethod
     def approve(
@@ -376,6 +383,70 @@ class QuestionReviewService:
                 "course_id": str(question.course_id),
                 "certificate_eligible": question.is_certificate_eligible,
             },
+        )
+        return question
+
+    @staticmethod
+    def structured_review(
+        question: QuizQuestion,
+        reviewer,
+        *,
+        decision: str,
+        section_comments=None,
+        required_changes=None,
+        notes: str = "",
+        certificate_eligible: bool = False,
+        marked_reusable: bool = False,
+        assignment_id=None,
+    ) -> QuizQuestion:
+        if not QuestionReviewService.can_review(reviewer, question):
+            raise PermissionError("You cannot review this question.")
+        status_map = {
+            "approve": QuestionReviewStatus.APPROVED,
+            "approve_minor_edits": QuestionReviewStatus.APPROVED,
+            "request_changes": QuestionReviewStatus.REVIEW_REQUIRED,
+            "reject": QuestionReviewStatus.REJECTED,
+            "escalate": QuestionReviewStatus.REVIEW_REQUIRED,
+        }
+        if decision not in status_map:
+            raise ServiceError("Invalid question review decision.")
+        status = status_map[decision]
+        if status != QuestionReviewStatus.APPROVED:
+            certificate_eligible = False
+        question.review_status = status
+        question.reviewed_by = reviewer
+        question.reviewed_at = timezone.now()
+        question.review_notes = notes
+        question.is_certificate_eligible = bool(certificate_eligible)
+        if marked_reusable and question.reusable_key:
+            question.category = question.category or "reusable"
+        question.save(
+            update_fields=[
+                "review_status",
+                "reviewed_by",
+                "reviewed_at",
+                "review_notes",
+                "is_certificate_eligible",
+                "category",
+                "updated_at",
+            ]
+        )
+        decision_record = QuestionReviewDecision.objects.create(
+            question=question,
+            reviewer=reviewer,
+            assignment_id=assignment_id,
+            decision=decision,
+            section_comments=section_comments or {},
+            required_changes=required_changes or [],
+            certificate_eligible=question.is_certificate_eligible,
+            marked_reusable=marked_reusable,
+            notes=notes,
+        )
+        AuditService.record(
+            actor=reviewer,
+            action="quiz_question_structured_reviewed",
+            target=question,
+            metadata={"decision": decision, "decision_id": str(decision_record.id)},
         )
         return question
 
