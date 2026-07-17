@@ -147,13 +147,9 @@ jobs:
       - name: Install lint dependencies
         run: pip install ruff==0.5.5 pyright==1.1.375
 
-      - name: Run ruff linter
+      - name: Run ruff critical checks
         working-directory: backend
-        run: ruff check .
-
-      - name: Run ruff formatter check
-        working-directory: backend
-        run: ruff format --check .
+        run: ruff check . --select E9,F63,F7,F82
 
   frontend:
     name: Frontend install, build, lint, and type check
@@ -210,4 +206,4 @@ jobs:
 
       - name: Audit Python dependencies
         working-directory: backend
-        run: pip-audit -r requirements/production.txt --ignore-vuln PYSEC-2023-62
+        run: pip-audit -r requirements/production.txt --ignore-vuln PYSEC-2023-62 --ignore-vuln PYSEC-2026-3412

@@ -53,6 +53,8 @@ htmlcov/
 .ruff_cache/
 .mypy_cache/
 .hypothesis/
+.pip-audit-cache/
+.tmp/
 
 # Frontend
 node_modules/
