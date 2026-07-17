@@ -5,15 +5,17 @@ import { formatPrice } from "@/lib/utils";
 import { EnrollButton } from "@/components/course/EnrollButton";
 import type { Course } from "@/types/course.types";
 
+export const dynamic = "force-dynamic";
+
 async function fetchCourse(slug: string): Promise<Course | null> {
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/courses/${slug}/`,
-      { next: { revalidate: 60 } }
+      { cache: "no-store" }
     );
     if (!res.ok) return null;
     const data = await res.json();
-    return data.data as Course;
+    return (data.data || data) as Course;
   } catch {
     return null;
   }

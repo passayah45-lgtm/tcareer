@@ -2,6 +2,8 @@ import { Navbar } from "@/components/layout/Navbar";
 import { CourseCard } from "@/components/course/CourseCard";
 import type { Course } from "@/types/course.types";
 
+export const dynamic = "force-dynamic";
+
 async function fetchCourses(search?: string, level?: string): Promise<Course[]> {
   const params = new URLSearchParams();
   if (search) params.append("search", search);
@@ -10,7 +12,7 @@ async function fetchCourses(search?: string, level?: string): Promise<Course[]> 
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/courses/?${params.toString()}`,
-      { next: { revalidate: 60 } }
+      { cache: "no-store" }
     );
     if (!res.ok) return [];
     const data = await res.json();
