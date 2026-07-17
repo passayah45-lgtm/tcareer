@@ -31,11 +31,44 @@ def data_analyst_track(db):
     )
 
 
+@pytest.fixture
+def full_stack_track(db):
+    return CareerTrack.objects.create(
+        title="Full Stack Developer",
+        slug="full-stack-developer",
+        short_description="Full stack developer path",
+        description="Learn frontend, backend, and deployment.",
+        category="tech",
+        difficulty="beginner",
+        position=2,
+        is_active=True,
+    )
+
+
 def run_seed(instructor, *args, confirm=True):
     output = io.StringIO()
     command_args = [
         "--track",
         "data-analyst",
+        "--instructor-email",
+        instructor.email,
+        *args,
+    ]
+    if confirm and "--dry-run" not in args:
+        command_args.append("--confirm-production")
+    call_command(
+        "seed_production_course_catalog",
+        *command_args,
+        stdout=output,
+    )
+    return output.getvalue()
+
+
+def run_track_seed(instructor, track_slug, *args, confirm=True):
+    output = io.StringIO()
+    command_args = [
+        "--track",
+        track_slug,
         "--instructor-email",
         instructor.email,
         *args,
@@ -106,6 +139,32 @@ def test_single_course_seed_creates_only_excel_and_one_attachment(data_analyst_t
     assert track_course.course.slug == "excel-for-data-analysis"
     assert track_course.position == 10
     assert track_course.course.status == CourseStatus.DRAFT
+
+
+@pytest.mark.django_db
+def test_full_stack_seed_creates_priced_track_courses(full_stack_track):
+    instructor = InstructorFactory(email="instructor@example.com")
+    client = APIClient()
+
+    run_track_seed(instructor, "full-stack-developer", "--publish")
+
+    attachments = TrackCourse.objects.filter(track=full_stack_track).select_related("course")
+    assert attachments.count() == len(TRACK_ATTACHMENTS["full-stack-developer"])
+    assert attachments.filter(is_required=True).count() == 7
+    assert str(Course.objects.get(slug="javascript-essentials").price) == "19.99"
+    assert str(Course.objects.get(slug="html-and-css-from-zero").price) == "0.00"
+
+    response = client.get(
+        reverse("tracks:track-detail", kwargs={"slug": "full-stack-developer"})
+    )
+    assert response.status_code == 200
+    courses = [
+        course
+        for stage in response.json()["data"]["courses_by_stage"]
+        for course in stage["courses"]
+    ]
+    assert courses[0]["course_slug"] == "html-and-css-from-zero"
+    assert any(course["course_price"] == "29.99" for course in courses)
 
 
 @pytest.mark.django_db

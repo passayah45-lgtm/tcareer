@@ -257,6 +257,162 @@ DATA_ANALYST_COURSES: tuple[CatalogCourse, ...] = (
 )
 
 
+FULL_STACK_DEVELOPER_COURSES: tuple[CatalogCourse, ...] = (
+    CatalogCourse(
+        title="HTML and CSS from Zero",
+        slug="html-and-css-from-zero",
+        short_description="Build responsive, accessible web pages with semantic HTML and CSS.",
+        description=(
+            "A practical frontend foundation course covering semantic HTML, CSS layout, "
+            "responsive design, forms, accessibility basics, and polished landing pages."
+        ),
+        level=CourseLevel.BEGINNER,
+        tags=("html", "css", "frontend", "responsive-design"),
+        requirements=("Basic computer literacy",),
+        what_you_learn=(
+            "Structure web pages with semantic HTML",
+            "Style layouts with modern CSS",
+            "Build responsive pages",
+            "Apply accessibility basics",
+        ),
+        price="0.00",
+    ),
+    CatalogCourse(
+        title="JavaScript Essentials",
+        slug="javascript-essentials",
+        short_description="Learn JavaScript fundamentals for interactive web applications.",
+        description=(
+            "Students learn variables, functions, arrays, objects, DOM interaction, "
+            "events, async basics, and the habits needed before React."
+        ),
+        level=CourseLevel.BEGINNER,
+        tags=("javascript", "frontend", "programming", "web-development"),
+        requirements=("HTML and CSS basics",),
+        what_you_learn=(
+            "Write JavaScript functions",
+            "Work with arrays and objects",
+            "Handle browser events",
+            "Fetch data from APIs",
+        ),
+        price="19.99",
+    ),
+    CatalogCourse(
+        title="Git and GitHub for Developers",
+        slug="git-and-github-for-developers",
+        short_description="Use Git and GitHub to manage code, branches, and collaboration.",
+        description=(
+            "A hands-on version control course covering commits, branches, pull requests, "
+            "merge conflict basics, repository hygiene, and collaboration workflows."
+        ),
+        level=CourseLevel.BEGINNER,
+        tags=("git", "github", "developer-tools", "collaboration"),
+        requirements=("Basic command line familiarity is helpful",),
+        what_you_learn=(
+            "Track code changes with Git",
+            "Use branches and pull requests",
+            "Resolve simple conflicts",
+            "Collaborate on GitHub",
+        ),
+        price="0.00",
+    ),
+    CatalogCourse(
+        title="React from Zero to First App",
+        slug="react-from-zero-to-first-app",
+        short_description="Build component-based interfaces with React.",
+        description=(
+            "Students build their first React applications while learning components, "
+            "props, state, forms, effects, routing concepts, and reusable UI patterns."
+        ),
+        level=CourseLevel.INTERMEDIATE,
+        tags=("react", "frontend", "components", "javascript"),
+        requirements=("JavaScript fundamentals", "HTML and CSS basics"),
+        what_you_learn=(
+            "Create React components",
+            "Manage state and props",
+            "Build forms and lists",
+            "Structure a small React app",
+        ),
+        price="29.99",
+    ),
+    CatalogCourse(
+        title="Node.js and Express Backend Development",
+        slug="nodejs-and-express-backend-development",
+        short_description="Create APIs and backend services with Node.js and Express.",
+        description=(
+            "A backend foundation course covering Express routes, middleware, REST APIs, "
+            "validation, authentication concepts, error handling, and project structure."
+        ),
+        level=CourseLevel.INTERMEDIATE,
+        tags=("nodejs", "express", "backend", "api"),
+        requirements=("JavaScript essentials",),
+        what_you_learn=(
+            "Build Express APIs",
+            "Design REST endpoints",
+            "Validate request data",
+            "Handle backend errors safely",
+        ),
+        price="29.99",
+    ),
+    CatalogCourse(
+        title="PostgreSQL for Developers",
+        slug="postgresql-for-developers",
+        short_description="Design relational data models and query PostgreSQL databases.",
+        description=(
+            "Students learn relational modeling, SQL queries, indexes, constraints, joins, "
+            "migrations concepts, and database-backed application patterns."
+        ),
+        level=CourseLevel.INTERMEDIATE,
+        tags=("postgresql", "sql", "databases", "backend"),
+        requirements=("Basic programming experience",),
+        what_you_learn=(
+            "Model relational data",
+            "Write SQL queries",
+            "Use constraints and indexes",
+            "Connect applications to PostgreSQL",
+        ),
+        price="19.99",
+    ),
+    CatalogCourse(
+        title="TypeScript for JavaScript Developers",
+        slug="typescript-for-javascript-developers",
+        short_description="Use TypeScript to build safer frontend and backend code.",
+        description=(
+            "A practical TypeScript course covering types, interfaces, generics basics, "
+            "React props, API contracts, and refactoring JavaScript with confidence."
+        ),
+        level=CourseLevel.INTERMEDIATE,
+        tags=("typescript", "javascript", "frontend", "backend"),
+        requirements=("JavaScript essentials",),
+        what_you_learn=(
+            "Add types to JavaScript code",
+            "Define API and component contracts",
+            "Use interfaces and unions",
+            "Refactor with stronger safety",
+        ),
+        price="19.99",
+    ),
+    CatalogCourse(
+        title="Docker and Containerization from Scratch",
+        slug="docker-and-containerization-from-scratch",
+        short_description="Package and run applications consistently with Docker.",
+        description=(
+            "Students learn images, containers, Dockerfiles, compose files, environment "
+            "variables, local services, and deployment-ready container habits."
+        ),
+        level=CourseLevel.INTERMEDIATE,
+        tags=("docker", "containers", "deployment", "devops"),
+        requirements=("Basic web application experience",),
+        what_you_learn=(
+            "Create Dockerfiles",
+            "Run apps with Docker Compose",
+            "Manage environment variables",
+            "Prepare services for deployment",
+        ),
+        price="24.99",
+    ),
+)
+
+
 TRACK_ATTACHMENTS: dict[str, tuple[TrackAttachment, ...]] = {
     "data-analyst": (
         TrackAttachment("excel-for-data-analysis", 10, TrackStage.FOUNDATION),
@@ -271,8 +427,21 @@ TRACK_ATTACHMENTS: dict[str, tuple[TrackAttachment, ...]] = {
         TrackAttachment("data-analytics-portfolio-project", 100, TrackStage.ADVANCED),
         TrackAttachment("resume-preparation-for-data-analysts", 110, TrackStage.ADVANCED),
         TrackAttachment("interview-preparation-for-data-analysts", 120, TrackStage.ADVANCED),
-    )
+    ),
+    "full-stack-developer": (
+        TrackAttachment("html-and-css-from-zero", 10, TrackStage.FOUNDATION),
+        TrackAttachment("javascript-essentials", 20, TrackStage.FOUNDATION),
+        TrackAttachment("git-and-github-for-developers", 30, TrackStage.FOUNDATION),
+        TrackAttachment("react-from-zero-to-first-app", 40, TrackStage.CORE),
+        TrackAttachment("nodejs-and-express-backend-development", 50, TrackStage.CORE),
+        TrackAttachment("postgresql-for-developers", 60, TrackStage.CORE),
+        TrackAttachment("typescript-for-javascript-developers", 70, TrackStage.ADVANCED),
+        TrackAttachment("docker-and-containerization-from-scratch", 80, TrackStage.ADVANCED, False),
+    ),
 }
 
 
-COURSES_BY_SLUG = {course.slug: course for course in DATA_ANALYST_COURSES}
+COURSES_BY_SLUG = {
+    course.slug: course
+    for course in (*DATA_ANALYST_COURSES, *FULL_STACK_DEVELOPER_COURSES)
+}
