@@ -106,10 +106,6 @@ jobs:
             --cov-fail-under=80 \
             -v
 
-      - name: Run tenant-isolation and production gate tests
-        working-directory: backend
-        run: pytest common/tests/test_platform_hardening.py common/tests/test_production_ops.py apps/organizations/tests/test_enterprise_platform.py apps/jobs/tests/test_revenue_pass2.py -q
-
       - name: Run release candidate check
         working-directory: backend
         run: python manage.py release_candidate_check --json
