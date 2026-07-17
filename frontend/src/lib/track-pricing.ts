@@ -18,7 +18,7 @@ export function formatTrackFee(track: CareerTrack): string {
 
   const requiredCourses = trackCourses(track).filter((course) => course.is_required);
   if (requiredCourses.length === 0) {
-    return "View pricing";
+    return "Free";
   }
 
   const total = requiredCourses.reduce(
