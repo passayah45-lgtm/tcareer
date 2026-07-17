@@ -1,4 +1,4 @@
-import api, { getAuthCsrfHeader } from "./client";
+import api, { getAuthCsrfHeader, refreshAccessToken } from "./client";
 import type { AuthResponse, User, UserRole } from "@/types/user.types";
 import type { ApiResponse } from "@/types/api.types";
 
@@ -45,9 +45,7 @@ export async function googleAuth(idToken: string): Promise<AuthResponse> {
 
 export async function refreshToken(): Promise<{ access: string }> {
   try {
-    const res = await api.post("/auth/token/refresh/", {}, { headers: getAuthCsrfHeader() });
-    const access = res.data.data?.access || res.data.access;
-    if (!access) throw new Error("No access token in response");
+    const access = await refreshAccessToken();
     return { access };
   } catch {
     throw new Error("Token refresh failed");

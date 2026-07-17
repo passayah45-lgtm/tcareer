@@ -4,6 +4,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1
 const AUTH_CSRF_COOKIE_NAME = "tcareer_csrf";
 
 let accessToken: string | null = null;
+let refreshPromise: Promise<string> | null = null;
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
@@ -27,6 +28,32 @@ export function getCookie(name: string): string | null {
 export function getAuthCsrfHeader(): Record<string, string> {
   const csrfToken = getCookie(AUTH_CSRF_COOKIE_NAME);
   return csrfToken ? { "X-CSRFToken": csrfToken } : {};
+}
+
+export async function refreshAccessToken(): Promise<string> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = axios
+    .post(
+      `${API_URL}/auth/token/refresh/`,
+      {},
+      { withCredentials: true, headers: getAuthCsrfHeader() }
+    )
+    .then((response) => {
+      const newToken = response.data.data?.access || response.data.access;
+      if (!newToken) throw new Error("No access token in refresh response");
+      setAccessToken(newToken);
+      return newToken;
+    })
+    .catch((error) => {
+      setAccessToken(null);
+      throw error;
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+
+  return refreshPromise;
 }
 
 const api: AxiosInstance = axios.create({
@@ -79,13 +106,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const response = await axios.post(
-          `${API_URL}/auth/token/refresh/`,
-          {},
-          { withCredentials: true, headers: getAuthCsrfHeader() }
-        );
-        const newToken = response.data.data?.access || response.data.access;
-        setAccessToken(newToken);
+        const newToken = await refreshAccessToken();
         processQueue(null, newToken);
         original.headers!.Authorization = `Bearer ${newToken}`;
         return api(original);
