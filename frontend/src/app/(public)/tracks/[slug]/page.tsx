@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
 import { TrackEnrollSection } from "@/components/tracks/TrackEnrollSection";
+import { formatTrackFee } from "@/lib/track-pricing";
 import type { CareerTrack } from "@/types/track.types";
 
 export const dynamic = "force-dynamic";
@@ -23,12 +24,6 @@ async function fetchTrack(slug: string): Promise<CareerTrack | null> {
   } finally {
     clearTimeout(timeout);
   }
-}
-
-function formatSalary(min: number, max: number): string {
-  if (!min && !max) return "Competitive";
-  const fmt = (n: number) => `$${Math.round(n / 1000)}k`;
-  return `${fmt(min)} - ${fmt(max)} per year`;
 }
 
 export default async function TrackDetailPage({
@@ -71,7 +66,7 @@ export default async function TrackDetailPage({
               {[
                 { label: "Courses", value: String(track.required_courses_count) },
                 { label: "Duration", value: track.duration_display },
-                { label: "Avg Salary", value: formatSalary(track.avg_salary_min, track.avg_salary_max) },
+                { label: "Track Fee", value: formatTrackFee(track) },
                 { label: "Level", value: track.difficulty.charAt(0).toUpperCase() + track.difficulty.slice(1) },
               ].map((stat) => (
                 <div key={stat.label} className="border rounded-xl p-3 text-center">

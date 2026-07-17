@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
 import { enrollInTrack } from "@/lib/api/tracks.api";
+import { formatTrackFee } from "@/lib/track-pricing";
 import type { CareerTrack } from "@/types/track.types";
 
 interface TrackEnrollSectionProps {
@@ -64,14 +65,10 @@ export function TrackEnrollSection({ track }: TrackEnrollSectionProps) {
             <span className="text-muted-foreground">Level</span>
             <span className="font-medium capitalize">{track.difficulty}</span>
           </div>
-          {track.avg_salary_min > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Avg salary</span>
-              <span className="font-medium text-primary">
-                ${Math.round(track.avg_salary_min / 1000)}k - ${Math.round(track.avg_salary_max / 1000)}k
-              </span>
-            </div>
-          )}
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Track fee</span>
+            <span className="font-medium text-primary">{formatTrackFee(track)}</span>
+          </div>
         </div>
 
         {error && (
@@ -101,7 +98,7 @@ export function TrackEnrollSection({ track }: TrackEnrollSectionProps) {
         )}
 
         <p className="text-xs text-muted-foreground text-center">
-          Free to enroll. Paid courses require a subscription.
+          Track enrollment is free. Paid courses show in the track fee.
         </p>
       </div>
     </div>

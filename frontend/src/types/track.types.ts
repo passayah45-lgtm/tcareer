@@ -43,6 +43,7 @@ export interface CareerTrack {
   estimated_weeks_max: number;
   avg_salary_min: number;
   avg_salary_max: number;
+  track_fee?: string;
   total_courses: number;
   required_courses_count: number;
   is_enrolled: boolean;

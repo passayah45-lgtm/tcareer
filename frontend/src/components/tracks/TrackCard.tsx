@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatTrackFee } from "@/lib/track-pricing";
 import type { CareerTrack } from "@/types/track.types";
 
 interface TrackCardProps {
@@ -19,14 +20,9 @@ const difficultyColor: Record<string, string> = {
   advanced: "bg-red-100 text-red-800",
 };
 
-function formatSalary(min: number, max: number): string {
-  if (!min && !max) return "";
-  const fmt = (n: number) =>
-    n >= 1000 ? `$${Math.round(n / 1000)}k` : `$${n}`;
-  return `${fmt(min)} - ${fmt(max)}/yr`;
-}
-
 export function TrackCard({ track }: TrackCardProps) {
+  const trackFee = formatTrackFee(track);
+
   return (
     <Link href={`/tracks/${track.slug}`} className="group block">
       <div className="border rounded-xl p-5 hover:shadow-md transition-all bg-card h-full flex flex-col">
@@ -58,11 +54,9 @@ export function TrackCard({ track }: TrackCardProps) {
             <span>{track.required_courses_count} courses</span>
             <span>{track.duration_display}</span>
           </div>
-          {track.avg_salary_min > 0 && (
-            <div className="text-xs font-medium text-primary">
-              {formatSalary(track.avg_salary_min, track.avg_salary_max)}
-            </div>
-          )}
+          <div className="text-xs font-medium text-primary">
+            Track fee: {trackFee}
+          </div>
         </div>
 
         {track.is_enrolled && (
