@@ -22,7 +22,7 @@ async function fetchCourse(slug: string): Promise<Course | null> {
 }
 
 interface PageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 function LessonTypeIcon({ type }: { type: string }) {
@@ -32,10 +32,13 @@ function LessonTypeIcon({ type }: { type: string }) {
 }
 
 export default async function CourseDetailPage({ params }: PageProps) {
-  const course = await fetchCourse(params.slug);
+  const { slug } = await params;
+  const course = await fetchCourse(slug);
   if (!course) notFound();
 
-  const publishedLessons = course.lessons.filter((l) => l.is_published);
+  const lessons = course.lessons ?? [];
+  const whatYouLearn = course.what_you_learn ?? [];
+  const publishedLessons = lessons.filter((l) => l.is_published);
   const freePreviewLessons = publishedLessons.filter((l) => l.is_free_preview);
 
   return (
@@ -56,15 +59,15 @@ export default async function CourseDetailPage({ params }: PageProps) {
             <p className="text-sm text-muted-foreground mb-6">
               Taught by{" "}
               <span className="text-foreground font-medium">
-                {course.instructor?.full_name}
+                {course.instructor?.full_name || course.instructor_name || "T-Career"}
               </span>
             </p>
 
-            {course.what_you_learn.length > 0 && (
+            {whatYouLearn.length > 0 && (
               <div className="border rounded-xl p-6 mb-6">
                 <h2 className="font-semibold mb-3">What you will learn</h2>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {course.what_you_learn.map((item, i) => (
+                  {whatYouLearn.map((item, i) => (
                     <li key={i} className="text-sm flex gap-2">
                       <span className="text-primary mt-0.5">&#10003;</span>
                       {item}

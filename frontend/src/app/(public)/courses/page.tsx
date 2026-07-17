@@ -1,6 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { CourseCard } from "@/components/course/CourseCard";
 import type { Course } from "@/types/course.types";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +24,13 @@ async function fetchCourses(search?: string, level?: string): Promise<Course[]> 
 }
 
 interface PageProps {
-  searchParams: { search?: string; level?: string };
+  searchParams: Promise<{ search?: string; level?: string }>;
 }
 
 export default async function CourseCatalogPage({ searchParams }: PageProps) {
-  const courses = await fetchCourses(searchParams.search, searchParams.level);
+  const filters = await searchParams;
+  const activeLevel = filters.level?.toLowerCase();
+  const courses = await fetchCourses(filters.search, activeLevel);
 
   return (
     <>
@@ -43,7 +46,7 @@ export default async function CourseCatalogPage({ searchParams }: PageProps) {
         {/* Filters */}
         <div className="flex gap-3 mb-8 flex-wrap">
           {["All", "Beginner", "Intermediate", "Advanced"].map((level) => (
-            <a
+            <Link
               key={level}
               href={
                 level === "All"
@@ -51,14 +54,14 @@ export default async function CourseCatalogPage({ searchParams }: PageProps) {
                   : `/courses?level=${level.toLowerCase()}`
               }
               className={`px-4 py-1.5 rounded-full text-sm border transition-colors ${
-                (level === "All" && !searchParams.level) ||
-                searchParams.level === level.toLowerCase()
+                (level === "All" && !activeLevel) ||
+                activeLevel === level.toLowerCase()
                   ? "bg-primary text-primary-foreground border-primary"
                   : "hover:bg-muted"
               }`}
             >
               {level}
-            </a>
+            </Link>
           ))}
         </div>
 
