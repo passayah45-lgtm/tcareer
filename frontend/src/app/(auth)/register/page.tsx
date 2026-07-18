@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { register as registerUser } from "@/lib/api/auth.api";
 import { useAuthStore } from "@/stores/auth.store";
-import { getDashboardPathForUser } from "@/lib/auth/role-redirects";
+import { getPostAuthRedirect } from "@/lib/auth/role-redirects";
 import { registerSchema, type RegisterFormValues } from "@/lib/validations/auth.schema";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setAuth } = useAuthStore();
   const [serverError, setServerError] = useState("");
 
@@ -25,7 +26,14 @@ export default function RegisterPage() {
     try {
       const data = await registerUser(values);
       setAuth(data.user, data.access);
-      router.push(data.user.role === "student" ? "/onboarding" : getDashboardPathForUser(data.user));
+      const nextPath = searchParams.get("next");
+      router.push(
+        nextPath
+          ? getPostAuthRedirect(data.user, nextPath)
+          : data.user.role === "student"
+          ? "/onboarding"
+          : getPostAuthRedirect(data.user)
+      );
     } catch (err: unknown) {
       const error = err as { response?: { data?: { errors?: Record<string, string> } } };
       const errs = error?.response?.data?.errors;
@@ -91,5 +99,13 @@ export default function RegisterPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   );
 }

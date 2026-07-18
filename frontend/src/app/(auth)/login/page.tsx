@@ -17,6 +17,8 @@ function LoginForm() {
   const { setAuth } = useAuthStore();
   const [serverError, setServerError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const nextPath = searchParams.get("next");
+  const registerHref = nextPath ? `/register?next=${encodeURIComponent(nextPath)}` : "/register";
 
   const {
     register,
@@ -139,7 +141,7 @@ function LoginForm() {
 
         <p className="text-center text-sm text-muted-foreground mt-5">
           No account yet?{" "}
-          <Link href="/register" className="text-primary hover:text-primary-600 font-medium transition-colors">
+          <Link href={registerHref} className="text-primary hover:text-primary-600 font-medium transition-colors">
             Create one free
           </Link>
         </p>

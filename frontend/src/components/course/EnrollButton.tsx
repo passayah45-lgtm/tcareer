@@ -29,6 +29,7 @@ export function EnrollButton({
   const { isAuthenticated } = useAuthStore();
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -45,22 +46,51 @@ export function EnrollButton({
 
   async function handleEnroll() {
     if (!isAuthenticated) {
-      router.push(`/register?next=/courses/${courseSlug}`);
+      router.push(`/login?next=/courses/${courseSlug}`);
       return;
     }
     setLoading(true);
+    setMessage("");
     try {
       await enroll(courseId);
       setIsEnrolled(true);
-      router.push(`/learn/${courseSlug}/${firstLessonId}`);
-    } catch {
-      router.push(`/learn/${courseSlug}/${firstLessonId}`);
+      if (firstLessonId) {
+        router.push(`/learn/${courseSlug}/${firstLessonId}`);
+      } else {
+        setMessage("You are enrolled. Lessons are being prepared for this course.");
+      }
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { errors?: { detail?: string } } } };
+      const detail = e?.response?.data?.errors?.detail || "";
+      if (detail.toLowerCase().includes("already enrolled")) {
+        setIsEnrolled(true);
+        if (firstLessonId) {
+          router.push(`/learn/${courseSlug}/${firstLessonId}`);
+        } else {
+          setMessage("You are enrolled. Lessons are being prepared for this course.");
+        }
+      } else {
+        setMessage("Could not enroll right now. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
   }
 
   if (isEnrolled) {
+    if (!firstLessonId) {
+      return (
+        <div className="space-y-2">
+          <div className="w-full text-center bg-green-50 border border-green-200 text-green-800 px-4 py-2.5 rounded-lg text-sm font-medium">
+            Enrolled
+          </div>
+          <p className="text-xs text-muted-foreground text-center">
+            Lessons are being prepared for this course.
+          </p>
+        </div>
+      );
+    }
+
     return (
       <button
         onClick={() => router.push(`/learn/${courseSlug}/${firstLessonId}`)}
@@ -72,16 +102,21 @@ export function EnrollButton({
   }
 
   return (
-    <button
-      onClick={handleEnroll}
-      disabled={loading}
-      className="w-full bg-primary text-primary-foreground px-4 py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-    >
-      {loading
-        ? "Enrolling..."
-        : price === "0.00"
-        ? "Enroll for free"
-        : "Enroll now"}
-    </button>
+    <div className="space-y-2">
+      <button
+        onClick={handleEnroll}
+        disabled={loading}
+        className="w-full bg-primary text-primary-foreground px-4 py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+      >
+        {loading
+          ? "Enrolling..."
+          : price === "0.00"
+          ? "Enroll for free"
+          : "Enroll now"}
+      </button>
+      {message && (
+        <p className="text-xs text-muted-foreground text-center">{message}</p>
+      )}
+    </div>
   );
 }
