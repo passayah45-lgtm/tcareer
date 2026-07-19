@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
 import { getCourse, getCourseProgress, getLesson } from "@/lib/api/courses.api";
 import { LessonSidebar } from "@/components/course/LessonSidebar";
@@ -9,12 +9,9 @@ import { VideoPlayer } from "@/components/course/VideoPlayer";
 import { TutorChat } from "@/components/ai-tutor/TutorChat";
 import type { Course, Lesson, LessonProgress } from "@/types/course.types";
 
-interface PageProps {
-  params: { courseSlug: string; lessonId: string };
-}
-
-export default function LessonPlayerPage({ params }: PageProps) {
+export default function LessonPlayerPage() {
   const router = useRouter();
+  const params = useParams<{ courseSlug: string; lessonId: string }>();
   const { isAuthenticated, isLoading } = useAuthStore();
   const [course, setCourse] = useState<Course | null>(null);
   const [lesson, setLesson] = useState<Lesson | null>(null);

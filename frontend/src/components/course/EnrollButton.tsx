@@ -30,6 +30,7 @@ export function EnrollButton({
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const isPaid = Number(price) > 0;
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -49,6 +50,12 @@ export function EnrollButton({
       router.push(`/login?next=/courses/${courseSlug}`);
       return;
     }
+
+    if (isPaid) {
+      router.push(`/subscribe?next=/courses/${courseSlug}`);
+      return;
+    }
+
     setLoading(true);
     setMessage("");
     try {
@@ -60,7 +67,12 @@ export function EnrollButton({
         setMessage("You are enrolled. Lessons are being prepared for this course.");
       }
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { errors?: { detail?: string } } } };
+      const e = err as {
+        response?: {
+          status?: number;
+          data?: { errors?: { detail?: string }; detail?: string };
+        };
+      };
       const detail = e?.response?.data?.errors?.detail || "";
       if (detail.toLowerCase().includes("already enrolled")) {
         setIsEnrolled(true);
@@ -69,6 +81,8 @@ export function EnrollButton({
         } else {
           setMessage("You are enrolled. Lessons are being prepared for this course.");
         }
+      } else if (e?.response?.status === 403) {
+        setMessage("This paid course requires an active subscription.");
       } else {
         setMessage("Could not enroll right now. Please try again.");
       }
@@ -110,9 +124,9 @@ export function EnrollButton({
       >
         {loading
           ? "Enrolling..."
-          : price === "0.00"
+          : !isPaid
           ? "Enroll for free"
-          : "Enroll now"}
+          : "Subscribe to enroll"}
       </button>
       {message && (
         <p className="text-xs text-muted-foreground text-center">{message}</p>
