@@ -10,7 +10,15 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.audit.models import AuditLog
-from apps.courses.models import Course, CourseStatus, Enrollment
+from apps.courses.models import (
+    Course,
+    CourseStatus,
+    Enrollment,
+    Lesson,
+    LessonType,
+    TranscodingStatus,
+    VideoLesson,
+)
 from apps.courses.production_catalog import TRACK_ATTACHMENTS
 from apps.tracks.models import CareerTrack, TrackCourse
 from apps.users.models import User
@@ -165,6 +173,60 @@ def test_full_stack_seed_creates_priced_track_courses(full_stack_track):
     ]
     assert courses[0]["course_slug"] == "html-and-css-from-zero"
     assert any(course["course_price"] == "29.99" for course in courses)
+
+
+@pytest.mark.django_db
+def test_video_lesson_seed_dry_run_makes_no_changes(full_stack_track):
+    instructor = InstructorFactory(email="instructor@example.com")
+    run_track_seed(instructor, "full-stack-developer", "--publish")
+    output = io.StringIO()
+
+    call_command(
+        "seed_course_video_lessons",
+        "--course",
+        "javascript-essentials",
+        "--dry-run",
+        stdout=output,
+    )
+
+    assert "Dry run only" in output.getvalue()
+    assert Lesson.objects.count() == 0
+    assert VideoLesson.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_video_lesson_seed_creates_playable_lessons_for_catalog_courses(full_stack_track):
+    instructor = InstructorFactory(email="instructor@example.com")
+    run_track_seed(instructor, "full-stack-developer", "--publish")
+    output = io.StringIO()
+
+    call_command(
+        "seed_course_video_lessons",
+        "--course",
+        "javascript-essentials",
+        "--confirm-production",
+        stdout=output,
+    )
+
+    lesson = Lesson.objects.select_related("course").get(
+        course__slug="javascript-essentials"
+    )
+    assert lesson.lesson_type == LessonType.VIDEO
+    assert lesson.is_published is True
+    assert lesson.is_free_preview is True
+    assert lesson.video.transcoding_status == TranscodingStatus.COMPLETE
+    assert lesson.video.hls_url.endswith(".m3u8")
+    assert Course.objects.get(slug="javascript-essentials").preview_video_url.endswith(".m3u8")
+
+    call_command(
+        "seed_course_video_lessons",
+        "--course",
+        "javascript-essentials",
+        "--confirm-production",
+        stdout=io.StringIO(),
+    )
+    assert Lesson.objects.count() == 1
+    assert VideoLesson.objects.count() == 1
 
 
 @pytest.mark.django_db
