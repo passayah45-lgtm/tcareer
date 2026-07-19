@@ -97,6 +97,7 @@ export default function LessonPlayerPage() {
           lesson.video.transcoding_status === "complete" ? (
             <VideoPlayer
               hlsUrl={lesson.video.hls_url}
+              title={lesson.title}
               courseId={course.id}
               lessonId={lesson.id}
               lastPositionSeconds={

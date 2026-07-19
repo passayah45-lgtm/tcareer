@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { PlayCircle, FileText, HelpCircle } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { formatPrice } from "@/lib/utils";
 import { EnrollButton } from "@/components/course/EnrollButton";
-import type { Course } from "@/types/course.types";
+import type { Course, LessonType } from "@/types/course.types";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ async function fetchCourse(slug: string): Promise<Course | null> {
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ type?: string }>;
 }
 
 function LessonTypeIcon({ type }: { type: string }) {
@@ -31,8 +33,15 @@ function LessonTypeIcon({ type }: { type: string }) {
   return <FileText className="w-4 h-4 text-muted-foreground" />;
 }
 
-export default async function CourseDetailPage({ params }: PageProps) {
+const LESSON_TYPES: Array<{ type: LessonType; label: string }> = [
+  { type: "video", label: "Video" },
+  { type: "text", label: "Text" },
+  { type: "quiz", label: "Quiz" },
+];
+
+export default async function CourseDetailPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const query = await searchParams;
   const course = await fetchCourse(slug);
   if (!course) notFound();
 
@@ -40,6 +49,13 @@ export default async function CourseDetailPage({ params }: PageProps) {
   const whatYouLearn = course.what_you_learn ?? [];
   const publishedLessons = lessons.filter((l) => l.is_published);
   const freePreviewLessons = publishedLessons.filter((l) => l.is_free_preview);
+  const selectedType = LESSON_TYPES.some((item) => item.type === query?.type)
+    ? (query?.type as LessonType)
+    : "all";
+  const visibleLessons =
+    selectedType === "all"
+      ? publishedLessons
+      : publishedLessons.filter((lesson) => lesson.lesson_type === selectedType);
 
   return (
     <>
@@ -82,9 +98,10 @@ export default async function CourseDetailPage({ params }: PageProps) {
                 Course content ({publishedLessons.length} lessons)
               </h2>
               <div className="border rounded-xl overflow-hidden divide-y">
-                {publishedLessons.map((lesson, index) => (
-                  <div
+                {visibleLessons.map((lesson, index) => (
+                  <Link
                     key={lesson.id}
+                    href={`/learn/${course.slug}/${lesson.id}`}
                     className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
                   >
                     <div className="w-6 text-center flex-shrink-0">
@@ -93,28 +110,49 @@ export default async function CourseDetailPage({ params }: PageProps) {
                     <span className="text-sm text-muted-foreground w-6 flex-shrink-0">
                       {index + 1}.
                     </span>
-                    <span className="text-sm flex-1">{lesson.title}</span>
+                    <span className="text-sm flex-1 hover:text-primary">{lesson.title}</span>
                     {lesson.is_free_preview && (
                       <span className="text-xs text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full">
                         Free preview
                       </span>
                     )}
-                  </div>
+                  </Link>
                 ))}
+                {visibleLessons.length === 0 && (
+                  <div className="px-4 py-6 text-sm text-muted-foreground">
+                    No {selectedType} lessons are available for this course yet.
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center gap-4 mt-3 px-1">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2 mt-3 px-1">
+                <Link
+                  href={`/courses/${course.slug}`}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                    selectedType === "all"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:border-primary hover:text-primary"
+                  }`}
+                >
+                  All
+                </Link>
+                {LESSON_TYPES.map((item) => (
+                  <Link
+                    key={item.type}
+                    href={`/courses/${course.slug}?type=${item.type}`}
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                      selectedType === item.type
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:border-primary hover:text-primary"
+                    }`}
+                  >
+                    <LessonTypeIcon type={item.type} />
+                    {item.label}
+                  </Link>
+                ))}
+                <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
                   <PlayCircle className="w-3.5 h-3.5 text-primary" />
-                  Video
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                  Text
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <HelpCircle className="w-3.5 h-3.5 text-orange-500" />
-                  Quiz
+                  Click a lesson to start
                 </div>
               </div>
             </div>

@@ -6,6 +6,7 @@ import { updateProgress } from "@/lib/api/courses.api";
 
 interface VideoPlayerProps {
   hlsUrl: string;
+  title?: string;
   courseId: string;
   lessonId: string;
   lastPositionSeconds?: number;
@@ -17,6 +18,7 @@ const COMPLETION_THRESHOLD = 90; // percent
 
 export function VideoPlayer({
   hlsUrl,
+  title = "Course video",
   courseId,
   lessonId,
   lastPositionSeconds = 0,
@@ -28,6 +30,10 @@ export function VideoPlayer({
   const lastSavedTime = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const isEmbeddedVideo =
+    hlsUrl.includes("youtube.com/embed/") ||
+    hlsUrl.includes("youtube-nocookie.com/embed/") ||
+    hlsUrl.includes("player.vimeo.com/");
 
   const saveProgress = useCallback(
     async (percentage: number, positionSeconds: number) => {
@@ -41,6 +47,7 @@ export function VideoPlayer({
   );
 
   useEffect(() => {
+    if (isEmbeddedVideo) return;
     const video = videoRef.current;
     if (!video || !hlsUrl) return;
 
@@ -79,7 +86,7 @@ export function VideoPlayer({
     return () => {
       hlsRef.current?.destroy();
     };
-  }, [hlsUrl, lastPositionSeconds]);
+  }, [hlsUrl, isEmbeddedVideo, lastPositionSeconds]);
 
   const handleTimeUpdate = useCallback(() => {
     const video = videoRef.current;
@@ -117,6 +124,20 @@ export function VideoPlayer({
             Try again
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (isEmbeddedVideo) {
+    return (
+      <div className="aspect-video bg-black">
+        <iframe
+          src={hlsUrl}
+          title={title}
+          className="h-full w-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+        />
       </div>
     );
   }

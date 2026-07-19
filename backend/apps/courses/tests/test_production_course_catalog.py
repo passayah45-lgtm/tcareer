@@ -208,15 +208,22 @@ def test_video_lesson_seed_creates_playable_lessons_for_catalog_courses(full_sta
         stdout=output,
     )
 
-    lesson = Lesson.objects.select_related("course").get(
-        course__slug="javascript-essentials"
+    lessons = list(
+        Lesson.objects.select_related("course")
+        .filter(course__slug="javascript-essentials")
+        .order_by("position")
     )
+    lesson = lessons[0]
     assert lesson.lesson_type == LessonType.VIDEO
     assert lesson.is_published is True
     assert lesson.is_free_preview is True
     assert lesson.video.transcoding_status == TranscodingStatus.COMPLETE
-    assert lesson.video.hls_url.endswith(".m3u8")
-    assert Course.objects.get(slug="javascript-essentials").preview_video_url.endswith(".m3u8")
+    assert "youtube-nocookie.com/embed/" in lesson.video.hls_url
+    assert lessons[1].lesson_type == LessonType.TEXT
+    assert lessons[2].lesson_type == LessonType.QUIZ
+    assert "youtube-nocookie.com/embed/" in Course.objects.get(
+        slug="javascript-essentials"
+    ).preview_video_url
 
     call_command(
         "seed_course_video_lessons",
@@ -225,7 +232,7 @@ def test_video_lesson_seed_creates_playable_lessons_for_catalog_courses(full_sta
         "--confirm-production",
         stdout=io.StringIO(),
     )
-    assert Lesson.objects.count() == 1
+    assert Lesson.objects.count() == 3
     assert VideoLesson.objects.count() == 1
 
 

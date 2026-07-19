@@ -19,10 +19,23 @@ from apps.courses.production_catalog import COURSES_BY_SLUG
 SOURCE = "course_video_lesson_seed"
 DEFAULT_HLS_URL = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
 DEFAULT_THUMBNAIL_URL = "https://test-streams.mux.dev/x36xhzz/thumbs/00000001.jpg"
+COURSE_VIDEO_URLS = {
+    "sql-for-data-analysis": "https://www.youtube-nocookie.com/embed/HXV3zeQKqGY",
+    "python-fundamentals": "https://www.youtube-nocookie.com/embed/rfscVS0vtbw",
+    "python-for-data-analysis": "https://www.youtube-nocookie.com/embed/vmEHCJofslg",
+    "html-and-css-from-zero": "https://www.youtube-nocookie.com/embed/pQN-pnXPaVg",
+    "javascript-essentials": "https://www.youtube-nocookie.com/embed/PkZNo7MFNFg",
+    "git-and-github-for-developers": "https://www.youtube-nocookie.com/embed/RGOj5yH7evk",
+    "react-from-zero-to-first-app": "https://www.youtube-nocookie.com/embed/bMknfKXIFA8",
+    "nodejs-and-express-backend-development": "https://www.youtube-nocookie.com/embed/Oe421EPjeBE",
+    "postgresql-for-developers": "https://www.youtube-nocookie.com/embed/qw--VYLpxG4",
+    "typescript-for-javascript-developers": "https://www.youtube-nocookie.com/embed/30LWjhZzg50",
+    "docker-and-containerization-from-scratch": "https://www.youtube-nocookie.com/embed/pg19Z8LL06w",
+}
 
 
 class Command(BaseCommand):
-    help = "Seed one playable video lesson for production catalog courses."
+    help = "Seed playable preview lessons for production catalog courses."
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true", help="Print planned changes only.")
@@ -105,41 +118,14 @@ class Command(BaseCommand):
             return [options["course"]]
         return sorted(COURSES_BY_SLUG)
 
-    def _build_plan(self, course_slugs, courses, options):
-        plan = []
-        for slug in course_slugs:
-            course = courses.get(slug)
-            if course is None:
-                continue
-            title = f"{course.title}: Welcome video"
-            lesson = Lesson.objects.filter(course=course, title=title, deleted_at=None).first()
-            lesson_action = "create" if lesson is None else "keep"
-            video_action = "create"
-            if lesson is not None:
-                video_exists = VideoLesson.objects.filter(lesson=lesson).exists()
-                video_action = "keep" if video_exists else "create"
-                if options["update_existing"]:
-                    lesson_action = "update"
-                    video_action = "update"
-            plan.append(
-                {
-                    "course": course,
-                    "title": title,
-                    "lesson": lesson,
-                    "lesson_action": lesson_action,
-                    "video_action": video_action,
-                }
-            )
-        return plan
-
     def _print_plan(self, plan, missing, options):
         mode = "DRY RUN" if options["dry_run"] else "WRITE"
         self.stdout.write(f"Course video lesson seed plan ({mode})")
-        self.stdout.write(f"HLS URL: {options['hls_url']}")
+        self.stdout.write("Video source: course-specific public embed when available, fallback HLS otherwise")
         for item in plan:
             self.stdout.write(
                 f"  - {item['course'].slug}: lesson={item['lesson_action']}, "
-                f"video={item['video_action']}"
+                f"video={item['video_action']}, text={item['text_action']}, quiz={item['quiz_action']}"
             )
         for slug in missing:
             self.stdout.write(self.style.WARNING(f"  - {slug}: skipped, published course not found"))
@@ -153,16 +139,13 @@ class Command(BaseCommand):
         }
         for item in plan:
             course = item["course"]
-            lesson = item["lesson"]
-            if lesson is None:
-                lesson = Lesson.objects.create(
+            video_lesson = item["lesson"]
+            if video_lesson is None:
+                video_lesson = Lesson.objects.create(
                     course=course,
                     title=item["title"],
                     lesson_type=LessonType.VIDEO,
-                    content=(
-                        "<p>This seeded video lesson is for validating the course player, "
-                        "enrollment flow, progress tracking, and AI tutor entry points.</p>"
-                    ),
+                    content=self._intro_content(course),
                     position=1,
                     is_published=True,
                     is_free_preview=True,
@@ -170,19 +153,16 @@ class Command(BaseCommand):
                     published_version=1,
                 )
                 result["lessons_created"] += 1
-                self._audit("course_video_lesson_seeded", lesson)
+                self._audit("course_video_lesson_seeded", video_lesson)
             elif options["update_existing"]:
-                lesson.lesson_type = LessonType.VIDEO
-                lesson.content = (
-                    "<p>This seeded video lesson is for validating the course player, "
-                    "enrollment flow, progress tracking, and AI tutor entry points.</p>"
-                )
-                lesson.position = 1
-                lesson.is_published = True
-                lesson.is_free_preview = True
-                lesson.review_status = ContentReviewStatus.PUBLISHED
-                lesson.published_version = max(lesson.published_version, 1)
-                lesson.save(
+                video_lesson.lesson_type = LessonType.VIDEO
+                video_lesson.content = self._intro_content(course)
+                video_lesson.position = 1
+                video_lesson.is_published = True
+                video_lesson.is_free_preview = True
+                video_lesson.review_status = ContentReviewStatus.PUBLISHED
+                video_lesson.published_version = max(video_lesson.published_version, 1)
+                video_lesson.save(
                     update_fields=[
                         "lesson_type",
                         "content",
@@ -195,13 +175,13 @@ class Command(BaseCommand):
                     ]
                 )
                 result["lessons_updated"] += 1
-                self._audit("course_video_lesson_updated", lesson)
+                self._audit("course_video_lesson_updated", video_lesson)
 
-            video, created = VideoLesson.objects.get_or_create(lesson=lesson)
+            video, created = VideoLesson.objects.get_or_create(lesson=video_lesson)
             if created or options["update_existing"]:
-                video.hls_url = options["hls_url"]
+                video.hls_url = COURSE_VIDEO_URLS.get(course.slug, options["hls_url"])
                 video.thumbnail_url = options["thumbnail_url"]
-                video.duration_seconds = 42
+                video.duration_seconds = 1800
                 video.transcoding_status = TranscodingStatus.COMPLETE
                 video.file_size_bytes = 0
                 video.save(
@@ -217,10 +197,131 @@ class Command(BaseCommand):
                 result["videos_created" if created else "videos_updated"] += 1
                 self._audit("course_video_asset_seeded", video)
 
+            for lesson_type, title, content, position in (
+                (
+                    LessonType.TEXT,
+                    f"{course.title}: Key ideas",
+                    self._text_content(course),
+                    2,
+                ),
+                (
+                    LessonType.QUIZ,
+                    f"{course.title}: Practice check",
+                    self._quiz_content(course),
+                    3,
+                ),
+            ):
+                lesson = item[f"{lesson_type}_lesson"]
+                if lesson is None:
+                    lesson = Lesson.objects.create(
+                        course=course,
+                        title=title,
+                        lesson_type=lesson_type,
+                        content=content,
+                        position=position,
+                        is_published=True,
+                        is_free_preview=False,
+                        review_status=ContentReviewStatus.PUBLISHED,
+                        published_version=1,
+                    )
+                    result["lessons_created"] += 1
+                    self._audit(f"course_{lesson_type}_lesson_seeded", lesson)
+                elif options["update_existing"]:
+                    lesson.lesson_type = lesson_type
+                    lesson.content = content
+                    lesson.position = position
+                    lesson.is_published = True
+                    lesson.review_status = ContentReviewStatus.PUBLISHED
+                    lesson.published_version = max(lesson.published_version, 1)
+                    lesson.save(
+                        update_fields=[
+                            "lesson_type",
+                            "content",
+                            "position",
+                            "is_published",
+                            "review_status",
+                            "published_version",
+                            "updated_at",
+                        ]
+                    )
+                    result["lessons_updated"] += 1
+                    self._audit(f"course_{lesson_type}_lesson_updated", lesson)
+
             if not course.preview_video_url:
-                course.preview_video_url = options["hls_url"]
+                course.preview_video_url = COURSE_VIDEO_URLS.get(course.slug, options["hls_url"])
                 course.save(update_fields=["preview_video_url", "updated_at"])
         return result
+
+    def _build_plan(self, course_slugs, courses, options):
+        plan = []
+        for slug in course_slugs:
+            course = courses.get(slug)
+            if course is None:
+                continue
+            title = f"{course.title}: Welcome video"
+            text_title = f"{course.title}: Key ideas"
+            quiz_title = f"{course.title}: Practice check"
+            lesson = Lesson.objects.filter(course=course, title=title, deleted_at=None).first()
+            text_lesson = Lesson.objects.filter(course=course, title=text_title, deleted_at=None).first()
+            quiz_lesson = Lesson.objects.filter(course=course, title=quiz_title, deleted_at=None).first()
+            lesson_action = "create" if lesson is None else "keep"
+            text_action = "create" if text_lesson is None else "keep"
+            quiz_action = "create" if quiz_lesson is None else "keep"
+            video_action = "create"
+            if lesson is not None:
+                video_exists = VideoLesson.objects.filter(lesson=lesson).exists()
+                video_action = "keep" if video_exists else "create"
+                if options["update_existing"]:
+                    lesson_action = "update"
+                    text_action = "update"
+                    quiz_action = "update"
+                    video_action = "update"
+            plan.append(
+                {
+                    "course": course,
+                    "title": title,
+                    "lesson": lesson,
+                    "text_lesson": text_lesson,
+                    "quiz_lesson": quiz_lesson,
+                    "lesson_action": lesson_action,
+                    "text_action": text_action,
+                    "quiz_action": quiz_action,
+                    "video_action": video_action,
+                }
+            )
+        return plan
+
+    def _intro_content(self, course):
+        return (
+            f"<p>This preview introduces <strong>{course.title}</strong> and shows how the "
+            "topic connects to practical career skills on T-Career.</p>"
+            "<p>The seeded video is a public learning resource for platform testing. "
+            "Instructors should replace it with approved course-owned media before final publication.</p>"
+        )
+
+    def _text_content(self, course):
+        outcomes = "".join(f"<li>{item}</li>" for item in course.what_you_learn[:4])
+        requirements = "".join(f"<li>{item}</li>" for item in course.requirements[:3])
+        return (
+            f"<h2>{course.title}: Key ideas</h2>"
+            f"<p>{course.description}</p>"
+            "<h3>Learning outcomes</h3>"
+            f"<ul>{outcomes}</ul>"
+            "<h3>Before you continue</h3>"
+            f"<ul>{requirements or '<li>Review the course overview and complete the video preview.</li>'}</ul>"
+        )
+
+    def _quiz_content(self, course):
+        skill = course.tags[0] if course.tags else course.title
+        return (
+            f"<h2>{course.title}: Practice check</h2>"
+            "<ol>"
+            f"<li>What is one practical problem this course helps you solve with {skill}?</li>"
+            "<li>Which requirement or prerequisite do you need to strengthen before continuing?</li>"
+            "<li>Write one project idea you could add to your T-Career portfolio after this course.</li>"
+            "</ol>"
+            "<p>This preview quiz is stored as lesson content until the full assessment bank is approved.</p>"
+        )
 
     def _audit(self, action, target):
         AuditLog.objects.create(
